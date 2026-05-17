@@ -1,190 +1,286 @@
 # Project Handoff
 
-Ten plik jest roboczym zrodlem prawdy dla kolejnego agenta AI i dla dalszych etapow pracy.
+To jest glowny plik przekazania projektu dla kolejnego agenta AI.
 
-Zasada:
+Jesli ten plik i `README.md` sa sprzeczne, pierwszenstwo ma ten plik.
 
-- po kazdej istotnej zmianie w architekturze, deployu, buildzie, strukturze plikow albo logice aplikacji ten plik trzeba zaktualizowac
-- kolejny agent powinien zaczynac od przeczytania tego pliku, potem `README.md`, a dopiero potem kodu
+## 1. Aktualna prawda o projekcie
 
-## Snapshot
+1. Projekt zostaje w `React`.
+2. Obecne repo `Vite + React` jest aktywna baza do dalszego rozwoju.
+3. Docelowo projekt ma byc:
+   - `React`
+   - `TypeScript`
+   - `Google OAuth / Google Identity Services`
+   - `Google Drive API`
+   - dane tylko w `Google Drive`
+   - frontend-only
+   - bez backendu
+   - bez wlasnej bazy danych
+   - bez wlasnych kont i hasel
+4. Aktualny deploy na GitHub Pages dziala.
 
-- Projekt: `Wedding Planner`
-- Lokalizacja: `/Users/dawidmedrala/Documents/planner`
-- Repo GitHub: `https://github.com/dawid512/wedding-planner`
-- Data ostatniej aktualizacji tego pliku: `2026-05-17`
-- Status: projekt przebudowany na `Vite + React`
-- Status builda: `npm run build` zakonczony sukcesem `2026-05-17`
-- Status deployu: GitHub Pages dziala poprawnie po wlaczeniu `Source: GitHub Actions`
-- Status git: zdalny `origin` ustawiony na `https://github.com/dawid512/wedding-planner.git`
-- Status git: lokalny branch `main` jest polaczony z `origin/main`
-- Status Pages: pierwsza proba workflow na GitHubie zwrocila blad `Get Pages site failed`, ale po poprawnym wlaczeniu `Pages -> Source: GitHub Actions` deploy zaczal dzialac
+## 2. Repo i status
 
-## Co zostalo zrobione
+1. Nazwa projektu: `Wedding Planner`
+2. Lokalny katalog:
+   `/Users/dawidmedrala/Documents/planner`
+3. Repo GitHub:
+   `https://github.com/dawid512/wedding-planner`
+4. Aktualna data aktualizacji tego pliku:
+   `2026-05-17`
+5. Obecny build lokalny:
+   `npm run build` przechodzi
+6. Obecny hosting:
+   `GitHub Pages`
 
-1. Z surowego eksportu z Cloud Design zlozono normalne repo frontendowe.
-2. Pierwotny eksport byl oparty o:
-   `index.html` + CDN React + `@babel/standalone` + wiele plikow JSX opartych o globalne `window.*`.
-3. Projekt zostal przekonwertowany do ukladu `Vite + React`:
-   - dodano `package.json`
-   - dodano `vite.config.js`
-   - dodano `src/main.jsx`
-   - przeniesiono kod aplikacji do katalogu `src/`
-   - zamieniono globalne zaleznosci `window.*` na importy modulowe
-4. Dodano workflow GitHub Actions do deployu na GitHub Pages:
-   `.github/workflows/deploy.yml`
-   Pozniej workflow zaktualizowano do nowszych akcji opartych o Node 24.
-5. Dodano `README.md` z instrukcja lokalnego startu i deployu.
-6. Zainstalowano zaleznosci npm, co utworzylo `package-lock.json` i lokalny katalog `node_modules/`.
-7. Zweryfikowano build produkcyjny:
+## 3. Aktualna architektura docelowa
 
-```bash
-npm run build
+### Model aplikacji
+
+1. SPA
+2. frontend-only
+3. brak backendu
+4. brak wlasnej bazy danych
+5. brak API po naszej stronie
+6. source of truth tylko w `Google Drive`
+
+### Frontend
+
+1. `React`
+2. docelowo `TypeScript`
+3. `Vite`
+4. `React Router` jesli bedzie potrzebny do podzialu modulow
+5. prosty store Reactowy jest preferowany nad zbyt ciezkim state managementem
+
+### Auth
+
+1. `Google OAuth 2.0`
+2. `Google Identity Services`
+3. wymagany scope:
+   `https://www.googleapis.com/auth/drive.file`
+4. bez wlasnych kont
+5. bez hasel
+6. bez backendowego JWT
+
+### Storage
+
+1. wszystkie dane tylko w `Google Drive`
+2. format: `JSON`
+3. kazdy modul jako osobny plik
+
+Docelowa struktura:
+
+```text
+/WeddingPlanner/
+  /project-id/
+    wedding.json
+    guests.json
+    budget.json
+    tasks.json
+    vendors.json
+    tables.json
+    notes.json
+    settings.json
+    locks/
+    attachments/
 ```
 
-Wynik:
+### Sync
 
-- `dist/index.html`
-- `dist/mobile-preview.html`
-- `dist/assets/main-*.css`
-- `dist/assets/main-*.js`
+1. `online only`
+2. fetch przed edycja
+3. fetch po zapisie
+4. porownanie `revisionId` albo `etag`
+5. upload nowej wersji
+6. preferowany tryb konfliktow:
+   `block-write-on-conflict`
 
-## Dlaczego tak zostalo zrobione
+### Locki
 
-1. Uzytkownik chcial projekt "na JavaScript", a nie tymczasowy serwer Python.
-2. `Vite + React` daje normalny workflow frontendowy:
-   - `npm install`
-   - `npm run dev`
-   - `npm run build`
-3. Taki uklad jest prostszy do dalszego rozwoju, podpiecia backendu i wspolpracy z innymi agentami.
-4. GitHub Pages dobrze wspolpracuje z buildem z Vite oraz workflow GitHub Actions.
-5. Konwersja byla robiona mozliwie zachowawczo:
-   logika UI zostala zachowana, zmieniono glownie sposob ladowania i organizacji kodu.
+1. soft lock
+2. lock per modul, np. `guests.json`
+3. heartbeat co `10-20s`
+4. timeout `60-90s`
+5. auto unlock po braku aktywnosci
+6. readonly przy aktywnym locku
+7. force unlock po wygasnieciu locka
 
-## Aktualna struktura
+Przykladowy lock:
 
-- `index.html`
-  glowny entrypoint aplikacji
-- `mobile-preview.html`
-  dodatkowa strona podgladu responsywnego
-- `package.json`
-  skrypty i zaleznosci
-- `package-lock.json`
-  lockfile npm
-- `vite.config.js`
-  konfiguracja Vite, obecnie z `base: "./"` i dwoma wejściami HTML
-- `.github/workflows/deploy.yml`
-  automatyczny build i deploy na GitHub Pages
-- `src/main.jsx`
-  bootstrap React i import stylow
-- `src/app.jsx`
-  glowna powloka aplikacji
-- `src/auth.jsx`
-  mock logowania, workspace'ow i wspoledytorow oparty o `localStorage`
-- `src/core.jsx`
-  dane startowe, helpery, podstawowe komponenty UI
-- `src/pages-1.jsx`
-  dashboard, tasks, budget, guests
-- `src/pages-2.jsx`
-  tables, vendors, schedule, menu, outfits, inspiration, gifts, honeymoon
-- `src/pages-3.jsx`
-  events, music, documents, payments
-- `src/tweaks-panel.jsx`
-  panel tweakow przeniesiony do modulow ES
-- `src/styles.css`
-  glowne style aplikacji
-
-## Ważne decyzje techniczne
-
-1. `vite.config.js` uzywa `base: "./"`.
-   To zmniejsza ryzyko problemow ze sciezkami po wdrozeniu na GitHub Pages bez recznego ustawiania nazwy repo w configu.
-2. Build ma dwa punkty wejscia:
-   - `index.html`
-   - `mobile-preview.html`
-3. Workflow deployu uzywa `npm install`, a nie `npm ci`.
-   Ten punkt jest juz nieaktualny historycznie.
-   Obecnie workflow uzywa `npm ci`, bo repo ma `package-lock.json`.
-4. Konwersja z `window.*` do importow zostala zrobiona bez zmiany logiki domenowej.
-   Jesli pojawia sie regresje, najpierw sprawdzic importy i eksporty, a nie sam UI.
-5. Workflow deployu zostal zaktualizowany do nowszych akcji:
-   - `actions/checkout@v5`
-   - `actions/setup-node@v5`
-   - `actions/configure-pages@v6`
-   - `actions/upload-pages-artifact@v5`
-   - `actions/deploy-pages@v5`
-   To ma usunac warning o deprecacji runtime Node 20 w Actions.
-
-## Stan funkcjonalny aplikacji
-
-- UI planera dziala jako frontend React
-- responsywny preview ma osobna strone
-- build produkcyjny przechodzi
-- projekt jest gotowy do uruchamiania lokalnie przez Vite
-
-Obecne ograniczenia:
-
-- logowanie jest tylko mockiem
-- workspace'y sa tylko mockiem
-- wspoledycja jest tylko symulowana
-- dane trzymaja sie tylko w `localStorage`
-- brak prawdziwego backendu
-- brak prawdziwej autoryzacji
-
-## Co jest do zrobienia teraz
-
-1. Wypchnac najnowszy commit z poprawionym workflow i zaktualizowanym handoffem.
-2. Potwierdzic, ze nowy workflow z wersjami Node 24 przeszedl juz na GitHubie.
-3. Zachowac ten plik jako stale zrodlo prawdy przy kolejnych zmianach.
-
-## Co warto zrobic pozniej
-
-1. Dodac backend, jesli projekt ma miec prawdziwe logowanie i wspolne dane.
-   Najbardziej naturalny nastepny krok: `Supabase`.
-2. Rozwazyc podzial duzych plikow `pages-1.jsx`, `pages-2.jsx`, `pages-3.jsx` na mniejsze moduly.
-3. Dodac testy lub przynajmniej smoke testy UI.
-4. Rozwazyc uporzadkowanie nazewnictwa plikow:
-   `pages-1`, `pages-2`, `pages-3` sa funkcjonalne, ale nie sa idealnie czytelne.
-5. Opcjonalnie dodac ESLint i Prettier.
-
-## Jak uruchomic projekt
-
-```bash
-cd /Users/dawidmedrala/Documents/planner
-npm install
-npm run dev
+```json
+{
+  "lockedBy": "google_user_id",
+  "lockedAt": 123456,
+  "expiresAt": 123499
+}
 ```
 
-## Jak zweryfikowac build
+## 4. Model danych
 
-```bash
-cd /Users/dawidmedrala/Documents/planner
-npm run build
+Kazdy rekord ma miec minimum:
+
+```json
+{
+  "id": "uuid",
+  "createdAt": 123456,
+  "updatedAt": 123456,
+  "version": 1
+}
 ```
 
-## Jak czytac ten projekt jako kolejny agent
+Zasady:
 
-Zalecana kolejnosc:
+1. brak duplikacji ID
+2. brak wielkich zagniezdzonych JSON-ow
+3. modularne pliki per domena
+
+## 5. Moduly domenowe
+
+### Core
+
+1. dashboard
+2. checklisty
+3. budzet
+4. goscie
+5. harmonogram
+6. notatki
+7. uslugodawcy
+8. dokumenty
+
+### Rozszerzenia
+
+1. plan stolow
+2. menu
+3. muzyka
+4. stroje
+5. dekoracje
+6. podroz poslubna
+7. raporty
+
+## 6. Co jest teraz w repo
+
+1. `React`
+2. `JSX`, jeszcze nie `TypeScript`
+3. `localStorage` jako tymczasowy mock storage
+4. mock auth/workspaces
+5. brak prawdziwego Google login
+6. brak Google Drive sync
+7. brak prawdziwego lock engine
+8. dzialajacy UI i deploy
+
+Wniosek:
+
+1. obecny kod jest dobra baza migracyjna
+2. nie wyrzucamy go
+3. migrujemy go iteracyjnie
+
+## 7. Struktura repo
+
+1. `index.html`
+   glowny entrypoint
+2. `mobile-preview.html`
+   dodatkowy preview responsywny
+3. `package.json`
+   skrypty i zaleznosci
+4. `package-lock.json`
+   lockfile npm
+5. `vite.config.js`
+   konfiguracja Vite
+6. `.github/workflows/deploy.yml`
+   workflow GitHub Pages
+7. `src/main.jsx`
+   bootstrap React
+8. `src/app.jsx`
+   glowna powloka aplikacji
+9. `src/auth.jsx`
+   mock auth/workspace oparty o `localStorage`
+10. `src/core.jsx`
+    dane startowe, helpery, komponenty bazowe
+11. `src/pages-1.jsx`
+    dashboard, tasks, budget, guests
+12. `src/pages-2.jsx`
+    tables, vendors, schedule, menu, outfits, inspiration, gifts, honeymoon
+13. `src/pages-3.jsx`
+    events, music, documents, payments
+14. `src/tweaks-panel.jsx`
+    panel tweakow
+15. `src/styles.css`
+    glowne style
+
+## 8. Zrobione
+
+1. Przeniesiono eksport z Cloud Design do uporzadkowanego repo.
+2. Przebudowano projekt do `Vite + React`.
+3. Dodano lokalny workflow developerski przez `npm`.
+4. Dodano i poprawiono deploy na GitHub Pages.
+5. Zweryfikowano, ze `npm run build` przechodzi.
+6. Opublikowano dzialajaca wersje na GitHub Pages.
+7. Ustalono finalnie, ze projekt zostaje w React.
+8. Utworzono i utrzymujemy ten plik handoff.
+
+## 9. Do zrobienia teraz
+
+1. Dodac `TypeScript` do repo.
+2. Ustalic bezpieczna strategia migracji plik po pliku z `jsx` do `tsx/ts`.
+3. Dodac `Google Identity Services`.
+4. Dodac warstwe `Google Drive API`.
+5. Zaprojektowac warstwy:
+   - `auth`
+   - `google-drive`
+   - `sync-engine`
+   - `locks`
+   - `project-files`
+6. Zdefiniowac kontrakty JSON:
+   - `wedding.json`
+   - `guests.json`
+   - `budget.json`
+   - `tasks.json`
+   - `vendors.json`
+   - `tables.json`
+   - `notes.json`
+   - `settings.json`
+7. Zaimplementowac onboarding:
+   login Google -> create/find folder -> initialize files -> dashboard
+8. Zaimplementowac MVP:
+   - dashboard
+   - checklisty
+   - budzet
+   - goscie
+   - sync JSON
+   - soft locks
+
+## 10. Do zrobienia pozniej
+
+1. Przeniesc pozostale moduly na nowa warstwe danych.
+2. Dodac upload zalacznikow do `attachments/`.
+3. Dodac lepsza obsluge konfliktow i komunikaty UX.
+4. Rozwazyc porzadniejszy podzial duzych plikow `pages-*`.
+5. Rozwazyc ESLint i Prettier po ustabilizowaniu migracji.
+
+## 11. Czego nie robic
+
+1. Nie rozwijac dalej `localStorage` jako docelowego source of truth.
+2. Nie dodawac backendu.
+3. Nie dodawac wlasnych kont i hasel.
+4. Nie budowac realtime websocketow.
+5. Nie opierac architektury o jeden wielki JSON.
+
+## 12. Jak zaczac jako kolejny agent
 
 1. Przeczytaj ten plik.
-2. Przeczytaj `README.md`.
+2. Potem przeczytaj `README.md`.
 3. Sprawdz `package.json` i `vite.config.js`.
-4. Wejdz do `src/main.jsx`, potem `src/app.jsx`.
-5. Dopiero potem wchodz w `auth.jsx`, `core.jsx` i pliki `pages-*`.
+4. Zrozum, ze obecne `auth.jsx` i `localStorage` sa przejsciowe.
+5. Traktuj obecny UI jako baze do ewolucyjnej migracji.
 
-## Dziennik zmian
+## 13. Dziennik zmian
 
 ### 2026-05-17
 
-- utworzono repo robocze z eksportu Cloud Design
-- przeanalizowano, ze pierwotna wersja byla Reactem ladowanym przez CDN i Babel w przegladarce
-- przebudowano projekt do `Vite + React`
-- dodano workflow deployu na GitHub Pages
-- zainstalowano zaleznosci npm
-- potwierdzono poprawny `npm run build`
-- potwierdzono, ze istnieje lokalny pierwszy commit `67d47bb`
-- podlaczono `origin` do `https://github.com/dawid512/wedding-planner.git`
-- proba `git push -u origin main` przez HTTPS nie przeszla z powodu braku autoryzacji GitHub w terminalu
-- pierwszy run GitHub Pages na GitHubie zglosil brak skonfigurowanej strony Pages dla repo
-- workflow zaktualizowano do nowszych wersji akcji zgodnych z Node 24
-- po wlaczeniu `Pages -> Source: GitHub Actions` deploy GitHub Pages zaczal dzialac poprawnie
-- utworzono ten plik handoff do dalszej pracy agentowej
+1. Uporzadkowano eksport z Cloud Design.
+2. Zmieniono projekt na `Vite + React`.
+3. Dodano dzialajacy deploy na GitHub Pages.
+4. Potwierdzono dzialajacy build.
+5. Ustalono, ze projekt zostaje w React.
+6. Uporzadkowano dokumentacje i handoff pod aktualny kierunek.

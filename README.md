@@ -1,109 +1,94 @@
 # Wedding Planner
 
-To jest juz normalny projekt JavaScriptowy oparty o `Vite + React`.
+Repozytorium projektu planera slubnego.
 
-Nie potrzebujesz Pythona do pracy nad aplikacja. Wczesniej wspomniany `python3 -m http.server` byl tylko awaryjnym sposobem na szybkie otwarcie statycznych plikow. Teraz projekt dziala tak, jak typowy frontend:
+Aktualna baza projektu:
 
-- `npm install`
-- `npm run dev`
-- `npm run build`
-
-## Stack
-
+- `React`
 - `Vite`
-- `React 18`
-- `CSS`
-- `GitHub Actions` do deployu na `GitHub Pages`
+- docelowo `TypeScript`
+- `GitHub Pages` do hostingu
+- docelowo `Google OAuth + Google Drive API` jako auth i storage
 
-## Handoff dla AI
+Aktualny adres repo:
 
-Pelny stan projektu, decyzje techniczne, lista zrobionych rzeczy i kolejne kroki sa utrzymywane w:
+- `https://github.com/dawid512/wedding-planner`
+
+Aktualny cel:
+
+- rozwijamy obecne repo Reactowe
+- odchodzimy od mockow `localStorage`
+- wdrazamy prawdziwe logowanie Google i zapis danych w Google Drive
+
+Najwazniejszy plik dla kolejnych agentow:
 
 - `PROJECT_HANDOFF.md`
 
-Kazdy kolejny agent powinien zaczynac od tego pliku.
+Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT_HANDOFF.md`.
 
-## Struktura
+## Co jest teraz
 
-- `index.html` - glowny punkt wejscia aplikacji
-- `mobile-preview.html` - dodatkowy podglad mobile/desktop
-- `src/` - komponenty, logika i style
-- `.github/workflows/deploy.yml` - automatyczny deploy na GitHub Pages
+- dzialajacy frontend `Vite + React`
+- dzialajacy deploy na `GitHub Pages`
+- obecny model danych i auth sa jeszcze mockowe
+- dane sa trzymane lokalnie w `localStorage`
 
-## Start lokalnie
+## Zrobione
 
-1. Wejdz do katalogu projektu:
+1. Uporzadkowano eksport z Cloud Design do repo `Vite + React`.
+2. Dodano build i lokalne uruchamianie przez `npm`.
+3. Dodano workflow deployu na GitHub Pages.
+4. Opublikowano projekt na GitHub Pages.
+5. Utworzono i utrzymujemy `PROJECT_HANDOFF.md`.
+6. Ustalono docelowy kierunek: `React + TypeScript + Google OAuth + Google Drive API`.
+
+## Do zrobienia teraz
+
+1. Dodac `TypeScript` do obecnego repo i zaczac migracje plikow z `jsx` do `tsx/ts`.
+2. Dodac `Google Identity Services`.
+3. Dodac warstwe `Google Drive API`.
+4. Zdefiniowac kontrakty plikow JSON:
+   `wedding.json`, `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`.
+5. Zaimplementowac onboarding:
+   login Google -> create/find folder -> initialize files -> dashboard.
+6. Zaimplementowac MVP syncu i lockow.
+
+## Lokalny start
 
 ```bash
 cd /Users/dawidmedrala/Documents/planner
-```
-
-2. Zainstaluj zaleznosci:
-
-```bash
 npm install
-```
-
-3. Uruchom projekt developersko:
-
-```bash
 npm run dev
 ```
 
-4. Vite poda Ci lokalny adres, zwykle:
+Domyslnie Vite wystawi aplikacje zwykle pod:
 
 ```text
 http://localhost:5173/
 ```
 
-Podglad responsywny bedzie pod:
+Podglad responsywny:
 
 ```text
 http://localhost:5173/mobile-preview.html
 ```
 
-## Build produkcyjny
+## Build
 
 ```bash
 npm run build
 ```
 
-Gotowe pliki trafia do katalogu `dist/`.
+Artefakty trafiaja do `dist/`.
 
-## Jak wrzucic to na GitHuba
+## Deploy
 
-1. Utworz nowe puste repo na GitHubie.
-2. W terminalu wykonaj:
+Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 
-```bash
-cd /Users/dawidmedrala/Documents/planner
-git add .
-git commit -m "Initial Vite React setup for wedding planner"
-git remote add origin https://github.com/TWOJ_LOGIN/wedding-planner.git
-git push -u origin main
-```
+## Aktualne ograniczenia
 
-## Jak wlaczyc GitHub Pages
-
-Po pushu:
-
-1. Otworz repo na GitHubie.
-2. Wejdz w `Settings` -> `Pages`.
-3. W `Source` wybierz `GitHub Actions`.
-4. Workflow z repo sam zbuduje i opublikuje projekt.
-
-Po chwili dostaniesz adres strony w stylu:
-
-`https://TWOJ_LOGIN.github.io/wedding-planner/`
-
-## Wazne ograniczenie obecnej wersji
-
-UI logowania i wspoledycji nadal jest tylko frontendowym mockiem zapisanym w `localStorage`.
-
-To znaczy:
-
-- dane nie synchronizuja sie miedzy urzadzeniami
-- logowanie nie jest prawdziwym systemem kont
-- zaproszenia i wspolpraca nie maja backendu
-
-Jesli chcesz, nastepnym krokiem moge Ci tez przygotowac wersje z prawdziwym backendem, np. pod `Supabase`.
+1. Brak prawdziwego Google login.
+2. Brak integracji z Google Drive.
+3. Brak prawdziwego sync engine.
+4. Brak lock systemu.
+5. `localStorage` nadal jest przejsciowym source of truth.
