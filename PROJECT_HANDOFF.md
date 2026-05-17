@@ -272,7 +272,7 @@ Wniosek:
 
 ## 9. Do zrobienia teraz
 
-1. Wpiac `Google Identity Services` do obecnego flow logowania.
+1. Wpiac `Google Identity Services` do obecnego flow logowania (konfiguracja juz istnieje w `src/lib/google-identity.ts`).
 2. Dodac warstwe `Google Drive API`.
 3. Zaprojektowac warstwy:
    - `auth`
@@ -325,7 +325,16 @@ Wniosek:
 
 ## 13. Dziennik zmian
 
-### 2026-05-17
+### 2026-05-17 (cd.)
+
+1. Dodano system typów gości: `GuestType` z wartościami `adult`, `child_half`, `child_free`.
+2. Dodano `VenueSettings` — cena talerzyka (sala + poprawiny) i zaliczka.
+3. Kalkulator kosztów w `PageGuests` — rozbicie na typy, potrącenie zaliczki.
+4. Checkbox `poprawiny` dla każdego gościa, licznik w statystykach.
+5. Obsługa może byc wyceniana na 100% lub 50%.
+6. Bugfix: pole daty na Dashboard + pole budżetu całkowitego (tylko liczby).
+
+### 2026-05-17 (początek)
 
 1. Uporzadkowano eksport z Cloud Design.
 2. Zmieniono projekt na `Vite + React`.
@@ -342,3 +351,13 @@ Wniosek:
 13. Naprawiono bug z data w trybie edycji na Dashboard (wartosc ISO zamiast sformatowanej).
 14. Naprawiono bug z polem budzetu calkowitego — dodano `type="number"`.
 15. `npm run typecheck` przechodzi bez bledow po pelnej migracji wszystkich plikow JSX→TSX.
+16. Dodano `GuestType = "adult" | "child_half" | "child_free"` w `core.tsx` (zastapilo `child: boolean`).
+17. Dodano `poprawiny: boolean` do interfejsu `Guest`.
+18. Dodano interfejs `VenueSettings` (`platePrice`, `afterPartyPlatePrice`, `deposit`) i pole `venueSettings` w `AppData`.
+19. Zaimplementowano kalkulator kosztów sali w `PageGuests`:
+    - rozbicie na typy gosci z cenami jednostkowymi
+    - potrącenie zaliczki, wyswietlanie "Do zapłaty"
+    - osobna sekcja dla poprawin
+20. Obsługa weselna (`side === "Obsługa"`) korzysta z tego samego systemu typów — domyslnie 100%, mozna ustawic 50% lub 0%.
+21. Poprawiono bug z data na Dashboard (bezposredni `<input type="date">` zamiast komponentu `Field`).
+22. Poprawiono pole budżetu calkowitego — `onChange` filtruje nieliczbowe znaki przez `replace(/[^0-9]/g, "")`.

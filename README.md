@@ -56,6 +56,13 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 19. Naprawiono bug: pole daty na Dashboardzie nie przyjmowalo edycji (wartosc ISO zamiast sformatowanej).
 20. Naprawiono bug: pole budżetu całkowitego przyjmowało litery — dodano `type="number"`.
 21. `npm run typecheck` przechodzi bez bledow po pelnej migracji.
+22. Dodano typy gości: `Dorosły` (100%), `Dziecko 50%`, `Dziecko bezpłatne` (0%).
+23. Dodano `VenueSettings`: cena talerzyk (sala), cena talerzyk (poprawiny), zaliczka.
+24. Dodano kalkulator kosztów sali z rozbiciem na typy gości i potrąceniem zaliczki.
+25. Dodano checkbox `Poprawiny` dla każdego gościa + licznik w statystykach.
+26. Obsługa weselna obsługuje ten sam mechanizm cenowy (100% lub 50%).
+27. Naprawiono pole daty na Dashboardzie (bezpośredni `<input type="date">`).
+28. Naprawiono pole budżetu całkowitego — filtrowanie nieliczbowych znaków w `onChange`.
 
 ## Do zrobienia teraz
 
