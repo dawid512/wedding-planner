@@ -165,7 +165,7 @@ Zasady:
 ## 6. Co jest teraz w repo
 
 1. `React`
-2. mieszany stan `JSX + TS/TSX`
+2. pelny `TypeScript` — wszystkie pliki `src/` zmigrowane do `.tsx/.ts`
 3. `localStorage` jako tymczasowy mock storage
 4. mock auth/workspaces
 5. brak prawdziwego Google login
@@ -203,12 +203,12 @@ Wniosek:
     dane startowe, helpery, komponenty bazowe, typy domenowe (zmigrowany do TS)
 11. `src/pages-1.tsx`
     dashboard, tasks, budget, guests (zmigrowany do TS)
-12. `src/pages-2.jsx`
-    tables, vendors, schedule, menu, outfits, inspiration, gifts, honeymoon
-13. `src/pages-3.jsx`
-    events, music, documents, payments
-14. `src/tweaks-panel.jsx`
-    panel tweakow
+12. `src/pages-2.tsx`
+    tables, vendors, schedule, menu, outfits, inspiration, gifts, honeymoon (zmigrowany do TS)
+13. `src/pages-3.tsx`
+    events, music, documents, payments (zmigrowany do TS)
+14. `src/tweaks-panel.tsx`
+    panel tweakow (zmigrowany do TS)
 15. `src/styles.css`
     glowne style
 16. `src/vite-env.d.ts`
@@ -257,16 +257,24 @@ Wniosek:
     - pelne typy propsow i update funkcji
 17. Zaktualizowano `src/app.tsx` do typow z core.tsx (`AppData`, `DataUpdater`).
 18. `npm run typecheck` przechodzi bez bledow.
+19. Zmigrowano `src/pages-2.jsx` → `src/pages-2.tsx`:
+    - `PageTables`, `PageVendors`, `PageSchedule`, `PageMenu`, `PageOutfits`, `PageInspiration`, `PageGifts`, `PageHoneymoon`
+    - pelne typy propsow, union typy dla kluczy, `OutfitListKey`, `MenuKey`, `HoneymoonKey`
+20. Zmigrowano `src/pages-3.jsx` → `src/pages-3.tsx`:
+    - `PageEvents`, `PageMusic`, `PageDocuments`, `PagePayments`
+    - `MusicListKey`, `MusicScalarKey`, `PersonKey`, `WitnessKey`, `PersonField`, `CeremonyField`
+21. Zmigrowano `src/tweaks-panel.jsx` → `src/tweaks-panel.tsx`:
+    - pelne typy dla: `useTweaks`, `TweaksPanel`, `TweakSection`, `TweakRow`, `TweakSlider`, `TweakToggle`, `TweakRadio`, `TweakSelect`, `TweakText`, `TweakNumber`, `TweakColor`, `TweakButton`
+    - typy: `TweakOptionPrimitive`, `TweakOptionObj`, `TweakOption`, `TweakColorOption`, `TweakRecord`
+22. Naprawiono bug: pole daty na Dashboardzie — w trybie edycji przekazywano sformatowany string zamiast ISO `YYYY-MM-DD`.
+23. Naprawiono bug: pole budzetu calkowitego — dodano `type="number"` aby blokowac wpisywanie liter.
+24. `npm run typecheck` przechodzi bez bledow po pelnej migracji JSX→TSX.
 
 ## 9. Do zrobienia teraz
 
-1. Migrowac pozostale pliki z `jsx` do `tsx/ts`:
-   - `src/pages-2.jsx`
-   - `src/pages-3.jsx`
-   - `src/tweaks-panel.jsx`
-2. Wpiac `Google Identity Services` do obecnego flow logowania.
-4. Dodac warstwe `Google Drive API`.
-5. Zaprojektowac warstwy:
+1. Wpiac `Google Identity Services` do obecnego flow logowania.
+2. Dodac warstwe `Google Drive API`.
+3. Zaprojektowac warstwy:
    - `auth`
    - `google-drive`
    - `sync-engine`
@@ -330,3 +338,7 @@ Wniosek:
 9. Zmigrowano `auth.jsx`, `core.jsx`, `pages-1.jsx` do TypeScript.
 10. Zaktualizowano `app.tsx` do nowych typow.
 11. `npm run typecheck` przechodzi bez bledow.
+12. Zmigrowano `pages-2.jsx` → `pages-2.tsx`, `pages-3.jsx` → `pages-3.tsx`, `tweaks-panel.jsx` → `tweaks-panel.tsx`.
+13. Naprawiono bug z data w trybie edycji na Dashboard (wartosc ISO zamiast sformatowanej).
+14. Naprawiono bug z polem budzetu calkowitego — dodano `type="number"`.
+15. `npm run typecheck` przechodzi bez bledow po pelnej migracji wszystkich plikow JSX→TSX.

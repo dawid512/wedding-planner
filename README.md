@@ -50,18 +50,22 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 13. Migracja `src/pages-1.jsx` → `src/pages-1.tsx` (Dashboard, Tasks, Budget, Guests).
 14. Zaktualizowano `src/app.tsx` do korzystania z typow AppData i DataUpdater z core.tsx.
 15. `npm run typecheck` przechodzi bez bledow po migracji.
+16. Migracja `src/pages-2.jsx` → `src/pages-2.tsx` (Tables, Vendors, Schedule, Menu, Outfits, Inspiration, Gifts, Honeymoon).
+17. Migracja `src/pages-3.jsx` → `src/pages-3.tsx` (Events, Music, Documents, Payments).
+18. Migracja `src/tweaks-panel.jsx` → `src/tweaks-panel.tsx` (pelne typy TS dla wszystkich komponentow).
+19. Naprawiono bug: pole daty na Dashboardzie nie przyjmowalo edycji (wartosc ISO zamiast sformatowanej).
+20. Naprawiono bug: pole budżetu całkowitego przyjmowało litery — dodano `type="number"`.
+21. `npm run typecheck` przechodzi bez bledow po pelnej migracji.
 
 ## Do zrobienia teraz
 
-1. Migrowac pozostale pliki aplikacji z `jsx` do `tsx/ts`:
-   `src/pages-2.jsx`, `src/pages-3.jsx`, `src/tweaks-panel.jsx`.
-2. Podlaczyc `Google Identity Services` do obecnego flow logowania.
-3. Dodac warstwe `Google Drive API`.
-4. Zdefiniowac kontrakty plikow JSON:
+1. Podlaczyc `Google Identity Services` do obecnego flow logowania.
+2. Dodac warstwe `Google Drive API`.
+3. Zdefiniowac kontrakty plikow JSON:
    `wedding.json`, `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`.
-5. Zaimplementowac onboarding:
+4. Zaimplementowac onboarding:
    login Google -> create/find folder -> initialize files -> dashboard.
-6. Zaimplementowac MVP syncu i lockow.
+5. Zaimplementowac MVP syncu i lockow.
 
 ## Lokalny start
 

@@ -51,21 +51,13 @@ function PageDashboard({ data, set, editing }: PageProps) {
             <span className="hero__meta-label">Data</span>
             <span className="hero__meta-val">
               <Field
-                value={data.couple.date ? fmtDate(data.couple.date) : ""}
+                value={editing ? (data.couple.date || "") : (data.couple.date ? fmtDate(data.couple.date) : "")}
                 onChange={(v) => set((d: AppData) => ({ ...d, couple: { ...d.couple, date: v } }))}
                 placeholder="Wybierz datę"
                 editing={editing}
                 inline
                 type={editing ? "date" : "text"}
               />
-              {editing && (
-                <input
-                  type="date"
-                  value={data.couple.date || ""}
-                  onChange={(e) => set((d: AppData) => ({ ...d, couple: { ...d.couple, date: e.target.value } }))}
-                  style={{ display: "none" }}
-                />
-              )}
             </span>
           </div>
           <div>
@@ -305,6 +297,7 @@ function PageBudget({ data, set, editing }: PageProps) {
               placeholder="np. 60000"
               editing={editing}
               inline
+              type="number"
               suffix={data.budgetTotal ? " zł" : ""}
             />
           </div>
