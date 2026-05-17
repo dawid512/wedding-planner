@@ -63,16 +63,23 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 26. Obsługa weselna obsługuje ten sam mechanizm cenowy (100% lub 50%).
 27. Naprawiono pole daty na Dashboardzie (bezpośredni `<input type="date">`).
 28. Naprawiono pole budżetu całkowitego — filtrowanie nieliczbowych znaków w `onChange`.
+29. Naprawiono Vite resolve extensions — `.tsx` ma wyższy priorytet niż `.jsx`.
+30. Usunięto stare pliki `.jsx` zastąpione przez `.tsx`.
+31. Zaimplementowano Google OAuth 2.0 (Google Identity Services Token Client) w `src/auth.tsx`.
+32. Utworzono `src/lib/google-drive.ts` — wrapper Drive API (getUserInfo, findOrCreateFolder, findFile, readJsonFile, createJsonFile, updateJsonFile).
+33. Zastąpiono mock auth/localStorage prawdziwym logowaniem Google + zapisem danych w Google Drive.
+34. Zaktualizowano typy `google.accounts.oauth2` w `src/types/google-identity.d.ts`.
+35. `AuthScreen` pokazuje przycisk „Zaloguj przez Google" lub instrukcję konfiguracji gdy brak Client ID.
+36. `npm run typecheck` przechodzi bez błędów.
 
 ## Do zrobienia teraz
 
-1. Podlaczyc `Google Identity Services` do obecnego flow logowania.
-2. Dodac warstwe `Google Drive API`.
-3. Zdefiniowac kontrakty plikow JSON:
-   `wedding.json`, `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`.
-4. Zaimplementowac onboarding:
-   login Google -> create/find folder -> initialize files -> dashboard.
-5. Zaimplementowac MVP syncu i lockow.
+1. Skonfigurować `VITE_GOOGLE_CLIENT_ID` w `.env.local` (Google Cloud Console → Credentials).
+2. Dodać token refresh — aktualny token GIS wygasa po 1 godz. (automatycznie przez `requestToken`).
+3. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
+4. Dodać soft locks per moduł + heartbeat.
+5. Dodać lepszą obsługę konfliktów (block-write-on-conflict).
+6. Dodać zapraszanie współedytorów przez Google Drive sharing.
 
 ## Lokalny start
 
@@ -108,10 +115,8 @@ Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 
 ## Aktualne ograniczenia
 
-1. Brak prawdziwego Google login.
-2. Brak integracji z Google Drive.
-3. Brak prawdziwego sync engine.
-4. Brak lock systemu.
-5. `localStorage` nadal jest przejsciowym source of truth.
-6. Wiekszosc kodu aplikacji nadal jest jeszcze w `jsx`, mimo dodanego toolingu TypeScript.
-7. Konfiguracja Google jest dopiero przygotowana, ale nie jest jeszcze wpieta do UI logowania.
+1. Wymaga skonfigurowania `VITE_GOOGLE_CLIENT_ID` w `.env.local`.
+2. Token GIS wygasa po 1 godz. — brak automatycznego odświeżania w tle.
+3. Wszystkie dane w jednym pliku `wedding-data.json` (brak podziału domenowego).
+4. Brak soft locks i sync engine.
+5. Brak zapraszania współedytorów (coming soon).

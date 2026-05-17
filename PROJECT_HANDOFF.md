@@ -36,7 +36,8 @@ Jesli ten plik i `README.md` sa sprzeczne, pierwszenstwo ma ten plik.
 7. Obecny tooling TS:
    `typescript`, `@types/react`, `@types/react-dom`, `tsconfig.json`, `npm run typecheck`
 8. Obecny stan Google auth:
-   konfiguracja i loader GIS sa dodane, ale logowanie Google nie jest jeszcze wpiete do UI
+   Google OAuth 2.0 (GIS Token Client) jest w pełni zaimplementowany — `src/auth.tsx` i `src/lib/google-drive.ts`.
+   Wymaga skonfigurowania `VITE_GOOGLE_CLIENT_ID` w `.env.local` (Google Cloud Console → OAuth 2.0 Client ID).
 
 ## 3. Aktualna architektura docelowa
 
@@ -166,12 +167,11 @@ Zasady:
 
 1. `React`
 2. pelny `TypeScript` — wszystkie pliki `src/` zmigrowane do `.tsx/.ts`
-3. `localStorage` jako tymczasowy mock storage
-4. mock auth/workspaces
-5. brak prawdziwego Google login
-6. brak Google Drive sync
-7. brak prawdziwego lock engine
-8. dzialajacy UI i deploy
+3. prawdziwe Google OAuth 2.0 (GIS Token Client) — zamiast mock auth z `localStorage`
+4. zapis i odczyt danych z `Google Drive` — plik `wedding-data.json` per użytkownik
+5. brak soft locks i sync engine (do zrobienia)
+6. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
+7. dzialajacy UI i deploy
 
 Wniosek:
 
@@ -198,7 +198,7 @@ Wniosek:
 8. `src/app.tsx`
    glowna powloka aplikacji (zmigrowana do TS)
 9. `src/auth.tsx`
-   mock auth/workspace oparty o `localStorage` (zmigrowany do TS)
+   Google OAuth 2.0 (GIS Token Client) — logowanie Google, zapis/odczyt z Drive
 10. `src/core.tsx`
     dane startowe, helpery, komponenty bazowe, typy domenowe (zmigrowany do TS)
 11. `src/pages-1.tsx`
@@ -215,7 +215,9 @@ Wniosek:
     deklaracje typow Vite
 17. `src/types/project.ts`
     start wspolnych typow domenowych
-18. `tsconfig.json`
+18. `src/lib/google-drive.ts`
+    wrapper Google Drive REST API: getUserInfo, findOrCreateFolder, findFile, readJsonFile, createJsonFile, updateJsonFile
+19. `tsconfig.json`
     konfiguracja TypeScript dla migracji etapowej
 19. `.env.example`
     przykladowe zmienne srodowiskowe dla integracji Google
@@ -226,7 +228,7 @@ Wniosek:
 22. `src/types/google-identity.d.ts`
     deklaracje typow dla `window.google`
 
-## 8. Zrobione
+## 8. Zrobione (skrót — pełna historia w sekcji 13)
 
 1. Przeniesiono eksport z Cloud Design do uporzadkowanego repo.
 2. Przebudowano projekt do `Vite + React`.
@@ -269,43 +271,42 @@ Wniosek:
 22. Naprawiono bug: pole daty na Dashboardzie — w trybie edycji przekazywano sformatowany string zamiast ISO `YYYY-MM-DD`.
 23. Naprawiono bug: pole budzetu calkowitego — dodano `type="number"` aby blokowac wpisywanie liter.
 24. `npm run typecheck` przechodzi bez bledow po pelnej migracji JSX→TSX.
+25. Dodano `GuestType` (`adult` / `child_half` / `child_free`) zastepujacy `child: boolean`.
+26. Dodano `poprawiny: boolean` na gosciu — checkbox w tabeli + licznik w statystykach.
+27. Dodano `VenueSettings` (`platePrice`, `afterPartyPlatePrice`, `deposit`) w `AppData`.
+28. Kalkulator kosztów sali w `PageGuests`: rozbicie na typy gosci, potrącenie zaliczki, sekcja poprawin.
+29. Obsluga weselna (`side === "Obsługa"`) obsługuje ten sam system cenowy.
+30. Naprawiono bug: pole daty Dashboard — bezposredni `<input type="date">`.
+31. Naprawiono bug: pole budzetu calkowitego — filtrowanie nieliczbowych znakow.
+32. Naprawiono Vite resolve extensions — `.tsx` ma teraz wyzszy priorytet niz `.jsx`.
+33. Usunieto stare pliki `.jsx` (zastapione przez `.tsx`): `auth`, `core`, `pages-1/2/3`, `tweaks-panel`.
+34. Dodano typy `google.accounts.oauth2` (TokenClient, TokenClientConfig, TokenResponse) do `src/types/google-identity.d.ts`.
+35. Utworzono `src/lib/google-drive.ts` — wrapper Google Drive REST API.
+36. Przepisano `src/auth.tsx` — zastąpiono mock email/hasło prawdziwym Google OAuth 2.0 (GIS Token Client).
+37. `AuthScreen` pokazuje przycisk „Zaloguj się przez Google" (z SVG Google logo).
+38. Po zalogowaniu: GIS daje token → getUserInfo → find/create folder WeddingPlanner → find/create wedding-data.json → wczytanie AppData.
+39. `updateActiveData()` → natychmiastowa aktualizacja stanu + asynchroniczny upload do Drive.
+40. Przywracanie sesji przy odświeżeniu przez `requestToken({ prompt: '' })` z timeoutem 12s.
+41. `InviteModal` i `UserMenu` zaktualizowane — wyświetlają awatar Google, info o planie.
+42. `npm run typecheck` przechodzi bez błędów po pełnej implementacji Google auth.
 
 ## 9. Do zrobienia teraz
 
-1. Wpiac `Google Identity Services` do obecnego flow logowania (konfiguracja juz istnieje w `src/lib/google-identity.ts`).
-2. Dodac warstwe `Google Drive API`.
-3. Zaprojektowac warstwy:
-   - `auth`
-   - `google-drive`
-   - `sync-engine`
-   - `locks`
-   - `project-files`
-6. Zdefiniowac kontrakty JSON:
-   - `wedding.json`
-   - `guests.json`
-   - `budget.json`
-   - `tasks.json`
-   - `vendors.json`
-   - `tables.json`
-   - `notes.json`
-   - `settings.json`
-7. Zaimplementowac onboarding:
-   login Google -> create/find folder -> initialize files -> dashboard
-8. Zaimplementowac MVP:
-   - dashboard
-   - checklisty
-   - budzet
-   - goscie
-   - sync JSON
-   - soft locks
+1. `VITE_GOOGLE_CLIENT_ID` jest juz skonfigurowany w `.env.local` (lokalnie) i w GitHub Secrets (deploy).
+2. Dodac token refresh: token GIS wygasa po 1h — wywolac `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min.
+3. Rozbic `wedding-data.json` na osobne pliki domenowe:
+   `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
+4. Dodac `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porownanie etag/revisionId.
+5. Dodac `src/lib/locks.ts` — soft lock per modul, heartbeat co 10-20s, timeout 60-90s.
+6. Dodac zapraszanie wspolredaktorow przez Google Drive file sharing API.
 
 ## 10. Do zrobienia pozniej
 
-1. Przeniesc pozostale moduly na nowa warstwe danych.
-2. Dodac upload zalacznikow do `attachments/`.
-3. Dodac lepsza obsluge konfliktow i komunikaty UX.
-4. Rozwazyc porzadniejszy podzial duzych plikow `pages-*`.
-5. Rozwazyc ESLint i Prettier po ustabilizowaniu migracji.
+1. Przeniesc pozostale moduly (events, music, documents, payments, outfits itd.) na warstwe Google Drive.
+2. Dodac upload zalacznikow do `attachments/` w Drive.
+3. Dodac lepsza obsluge konfliktow (block-write-on-conflict) i komunikaty UX.
+4. Rozwazyc porzadniejszy podzial duzych plikow `pages-2.tsx` i `pages-3.tsx`.
+5. Dodac ESLint i Prettier po ustabilizowaniu integracji Google.
 
 ## 11. Czego nie robic
 
@@ -320,10 +321,24 @@ Wniosek:
 1. Przeczytaj ten plik.
 2. Potem przeczytaj `README.md`.
 3. Sprawdz `package.json` i `vite.config.js`.
-4. Zrozum, ze obecne `auth.jsx` i `localStorage` sa przejsciowe.
+4. Zrozum, ze auth jest juz prawdziwy (Google OAuth + Drive) — `localStorage` sluzy tylko do cache'owania email/fileId miedzy sesjami.
 5. Traktuj obecny UI jako baze do ewolucyjnej migracji.
 
 ## 13. Dziennik zmian
+
+### 2026-05-17 (Google OAuth + Drive)
+
+1. Dodano typy `google.accounts.oauth2` do `src/types/google-identity.d.ts` (TokenClient, TokenClientConfig, TokenResponse).
+2. Utworzono `src/lib/google-drive.ts` z funkcjami: `getUserInfo`, `findOrCreateFolder`, `findFile`, `readJsonFile`, `createJsonFile`, `updateJsonFile`.
+3. Przepisano `src/auth.tsx` — usunięto mock email/hasło, dodano pełne Google OAuth 2.0 przez GIS Token Client.
+4. `AuthState` interface zachowany w pełni — kompatybilny z `app.tsx` bez zmian w tym pliku.
+5. `AuthScreen` → przycisk „Zaloguj się przez Google" z SVG logo Google.
+6. Po zalogowaniu: token → getUserInfo → find/create folder → find/create `wedding-data.json` → wczytanie `AppData`.
+7. `updateActiveData()` → natychmiastowa aktualizacja stanu + asynchroniczny `updateJsonFile` na Drive.
+8. Przywracanie sesji po odświeżeniu: `requestToken({ prompt: '' })` z timeoutem 12s (fallback: ekran logowania).
+9. `InviteModal` uproszczony — info o pliku Drive i folderze. Zapraszanie oznaczone jako "coming soon".
+10. `UserMenu` zaktualizowany — wyświetla awatar Google (zdjęcie profilowe lub inicjały), email, logout.
+11. `npm run typecheck` przechodzi bez błędów.
 
 ### 2026-05-17 (cd.)
 

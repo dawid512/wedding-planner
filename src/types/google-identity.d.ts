@@ -9,8 +9,36 @@ declare global {
           renderButton(parent: HTMLElement, options: GoogleIdButtonConfig): void;
           prompt(momentListener?: (notification: GooglePromptMomentNotification) => void): void;
         };
+        oauth2: {
+          initTokenClient(config: TokenClientConfig): TokenClient;
+          revoke(token: string, callback?: () => void): void;
+        };
       };
     };
+  }
+
+  interface TokenClientConfig {
+    client_id: string;
+    scope: string;
+    callback: (response: TokenResponse) => void;
+    error_callback?: (error: { type: string; message?: string }) => void;
+    prompt?: string;
+    login_hint?: string;
+    hd?: string;
+  }
+
+  interface TokenResponse {
+    access_token: string;
+    expires_in: number;
+    token_type: string;
+    scope: string;
+    error?: string;
+    error_description?: string;
+    error_uri?: string;
+  }
+
+  interface TokenClient {
+    requestAccessToken(overrideConfig?: Partial<TokenClientConfig>): void;
   }
 
   interface GoogleCredentialResponse {

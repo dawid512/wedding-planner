@@ -6,7 +6,7 @@ import type { AppData, DataUpdater } from "./core";
 import { PageDashboard, PageTasks, PageBudget, PageGuests } from "./pages-1";
 import { PageTables, PageVendors, PageSchedule, PageMenu, PageOutfits, PageInspiration, PageGifts, PageHoneymoon } from "./pages-2";
 import { PageEvents, PageMusic, PageDocuments, PagePayments } from "./pages-3";
-import { useAuth, AuthScreen, InviteModal, UserMenu, authInitials, avatarColor } from "./auth";
+import { useAuth, AuthScreen, PickerScreen, InviteModal, UserMenu, authInitials, avatarColor } from "./auth";
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio } from "./tweaks-panel";
 
 type PlannerAuth = ReturnType<typeof useAuth>;
@@ -69,6 +69,10 @@ function App() {
 
   if (!auth.session) {
     return <AuthScreen auth={auth} />;
+  }
+
+  if (auth.needsPicker) {
+    return <PickerScreen auth={auth} />;
   }
 
   if (!auth.activeWorkspace) {

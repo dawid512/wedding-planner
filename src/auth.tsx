@@ -1,39 +1,45 @@
-// Wedding Planner — auth, workspaces, collaborators (mockup)
+// Wedding Planner — Google OAuth + Google Drive auth
 
-import React, { useState as useAS, useEffect as useAE, useMemo as useAM } from "react";
-import { Icon as AIcon, EMPTY_DATA as A_EMPTY } from "./core";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Icon, EMPTY_DATA } from "./core";
+import type { AppData } from "./core";
+import { loadGoogleIdentity } from "./lib/google-identity";
+import { appConfig } from "./config/app-config";
+import {
+  getUserInfo,
+  findOrCreateFolder,
+  findFile,
+  readJsonFile,
+  createJsonFile,
+  updateJsonFile,
+  shareFile,
+  listPermissions,
+  removePermission,
+} from "./lib/google-drive";
+import type { DrivePermission } from "./lib/google-drive";
+import { openFilePicker } from "./lib/google-picker";
 
 // ============================================================
 // TYPES
 // ============================================================
-interface StorageKeys {
-  users: string;
-  workspaces: string;
-  session: string;
-  activeWs: string;
-  oldData: string;
-}
 
-interface User {
+export interface GoogleUser {
   email: string;
-  password: string;
   name: string;
-  createdAt: number;
+  picture?: string;
 }
 
 interface Collaborator {
   email: string;
   role: string;
-  status: string;
-  addedBy: string | null;
-  addedAt: number;
+  status?: string;
 }
 
 interface Workspace {
   id: string;
   ownerEmail: string;
   name: string;
-  data: typeof A_EMPTY;
+  data: AppData;
   collaborators: Collaborator[];
   createdAt: number;
   updatedAt?: number;
@@ -48,50 +54,42 @@ interface AuthResult {
 }
 
 export interface AuthState {
-  users: User[];
-  workspaces: WorkspacesMap;
   session: string | null;
+  isLoading: boolean;
+  driveError: string | null;
+  isGuest: boolean;
+  needsPicker: boolean;   // true = collaborator must pick a shared file
+  fileId: string | null;
+
   activeWorkspace: Workspace | null;
-  currentUser: User | null;
+  currentUser: GoogleUser | null;
   myWorkspaces: Workspace[];
   myRole: string | null;
   canEdit: boolean;
-  register: (email: string, password: string, name: string) => AuthResult;
-  login: (email: string, password: string) => AuthResult;
+
+  users: GoogleUser[];
+  workspaces: WorkspacesMap;
+
+  googleLogin: () => void;
   logout: () => void;
+  updateActiveData: (data: AppData) => void;
+  renameWorkspace: (name: string) => void;
+  _loadGuestFile: (fileId: string) => Promise<void>;
+
+  // Stub methods for backward compat
+  login: (email: string, password: string) => AuthResult;
+  register: (email: string, password: string, name: string) => AuthResult;
   switchWorkspace: (wsId: string) => void;
-  updateActiveData: (data: typeof A_EMPTY) => void;
   addCollaborator: (email: string, role: string) => AuthResult;
   removeCollaborator: (email: string) => void;
   updateCollaboratorRole: (email: string, role: string) => void;
-  renameWorkspace: (name: string) => void;
 }
 
 // ============================================================
-// STORAGE HELPERS
+// HELPERS
 // ============================================================
-const STORAGE: StorageKeys = {
-  users: "wp_users",
-  workspaces: "wp_workspaces",
-  session: "wp_session",
-  activeWs: "wp_active_ws",
-  oldData: "wedding-planner-data-v1",
-};
 
-function readJSON<T>(key: string, fallback: T): T {
-  try {
-    const v = JSON.parse(localStorage.getItem(key) ?? "null");
-    return v === null || v === undefined ? fallback : v;
-  } catch { return fallback; }
-}
-function writeJSON<T>(key: string, value: T): void {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
-}
-function genId(prefix: string): string {
-  return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-function normEmail(e: string | null | undefined): string { return (e || "").trim().toLowerCase(); }
-function initials(name: string | null | undefined, email: string): string {
+export function authInitials(name: string | null | undefined, email: string): string {
   const src = (name || email || "?").trim();
   if (!src) return "?";
   const parts = src.split(/\s+|@/).filter(Boolean);
@@ -99,409 +97,632 @@ function initials(name: string | null | undefined, email: string): string {
   const b = (parts[1]?.[0] || "").toUpperCase();
   return (a + b) || "?";
 }
-function avatarColor(email: string): string {
+
+export function avatarColor(email: string): string {
   let h = 0;
   for (let i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) % 360;
   return `oklch(0.85 0.05 ${h})`;
 }
 
 // ============================================================
+// MODULE-LEVEL TOKEN REF
+// Allows InviteModal (same file) to access the current token
+// without exposing it in the public AuthState interface.
+// ============================================================
+const _tokenRef: { current: string | null } = { current: null };
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+const LS = {
+  email:      "wp_g_email",
+  name:       "wp_g_name",
+  fileId:     "wp_g_file_id",
+  folderId:   "wp_g_folder_id",
+  wsName:     "wp_g_ws_name",
+  joinFileId: "wp_g_join_file_id",
+};
+
+const DATA_FILE = "wedding-data.json";
+const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.file openid email profile";
+const SILENT_RESTORE_TIMEOUT_MS = 12_000;
+
+function readJoinParam(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const join = params.get("join");
+  if (join) {
+    localStorage.setItem(LS.joinFileId, join);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("join");
+    window.history.replaceState({}, "", url.toString());
+  }
+  return localStorage.getItem(LS.joinFileId);
+}
+
+// ============================================================
 // useAuth HOOK
 // ============================================================
+
 function useAuth(): AuthState {
-  const [users, _setUsers] = useAS<User[]>(() => readJSON<User[]>(STORAGE.users, []));
-  const [workspaces, _setWorkspaces] = useAS<WorkspacesMap>(() => readJSON<WorkspacesMap>(STORAGE.workspaces, {}));
-  const [session, _setSession] = useAS<string | null>(() => localStorage.getItem(STORAGE.session));
-  const [activeWs, _setActiveWs] = useAS<string | null>(() => localStorage.getItem(STORAGE.activeWs));
+  const [session,    setSession]    = useState<string | null>(null);
+  const [isLoading,  setIsLoading]  = useState<boolean>(() => !!localStorage.getItem(LS.email));
+  const [driveError, setDriveError] = useState<string | null>(null);
+  const [userInfo,   setUserInfo]   = useState<GoogleUser | null>(null);
+  const [workspace,  setWorkspace]  = useState<Workspace | null>(null);
+  const [fileId,      setFileId]      = useState<string | null>(null);
+  const [isGuest,     setIsGuest]     = useState<boolean>(false);
+  const [needsPicker, setNeedsPicker] = useState<boolean>(false);
 
-  const setUsers = (u: User[]) => { _setUsers(u); writeJSON(STORAGE.users, u); };
-  const setWorkspaces = (w: WorkspacesMap) => { _setWorkspaces(w); writeJSON(STORAGE.workspaces, w); };
-  const setSession = (e: string | null) => {
-    _setSession(e);
-    if (e) localStorage.setItem(STORAGE.session, e);
-    else localStorage.removeItem(STORAGE.session);
-  };
-  const setActiveWs = (id: string | null) => {
-    _setActiveWs(id);
-    if (id) localStorage.setItem(STORAGE.activeWs, id);
-    else localStorage.removeItem(STORAGE.activeWs);
-  };
+  const tokenClientRef = useRef<TokenClient | null>(null);
+  const timeoutRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileIdRef      = useRef<string | null>(null);
+  fileIdRef.current    = fileId;
 
-  const currentUser = useAM<User | null>(
-    () => users.find(u => u.email === session) ?? null,
-    [users, session]
-  );
+  // ----------------------------------------------------------
+  // Clear everything
+  // ----------------------------------------------------------
 
-  const myWorkspaces = useAM<Workspace[]>(() => {
-    if (!session) return [];
-    return Object.values(workspaces).filter(ws =>
-      ws.ownerEmail === session ||
-      (ws.collaborators || []).some(c => normEmail(c.email) === normEmail(session))
-    );
-  }, [workspaces, session]);
-
-  // Auto-activate pending collaborator entries when the user logs in
-  useAE(() => {
-    if (!session) return;
-    let changed = false;
-    const next = { ...workspaces };
-    Object.values(next).forEach(ws => {
-      (ws.collaborators || []).forEach(c => {
-        if (normEmail(c.email) === normEmail(session) && c.status === "Zaproszony") {
-          c.status = "Aktywny";
-          changed = true;
-        }
-      });
-    });
-    if (changed) setWorkspaces(next);
-  }, [session]);
-
-  const register = (email: string, password: string, name: string): AuthResult => {
-    email = normEmail(email);
-    if (!email || !password) return { error: "Wypełnij wszystkie pola" };
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Niepoprawny format email" };
-    if (password.length < 4) return { error: "Hasło musi mieć min. 4 znaki" };
-    if (users.find(u => u.email === email)) return { error: "Konto z tym mailem już istnieje" };
-
-    const newUser: User = { email, password, name: name || email.split("@")[0], createdAt: Date.now() };
-    setUsers([...users, newUser]);
-
-    // Import legacy data into the new workspace if it's the first user
-    const legacy = users.length === 0 ? readJSON<typeof A_EMPTY | null>(STORAGE.oldData, null) : null;
-
-    const wsId = genId("ws");
-    const newWs: Workspace = {
-      id: wsId,
-      ownerEmail: email,
-      name: legacy ? "Mój ślub (zaimportowany)" : "Mój ślub",
-      data: legacy || A_EMPTY,
-      collaborators: [],
-      createdAt: Date.now(),
-    };
-    setWorkspaces({ ...workspaces, [wsId]: newWs });
-    if (legacy) localStorage.removeItem(STORAGE.oldData);
-
-    setSession(email);
-    setActiveWs(wsId);
-    return { ok: true };
-  };
-
-  const login = (email: string, password: string): AuthResult => {
-    email = normEmail(email);
-    if (!email || !password) return { error: "Wpisz email i hasło" };
-    const user = users.find(u => u.email === email && u.password === password);
-    if (!user) return { error: "Niepoprawny email lub hasło" };
-    setSession(email);
-    const wss = Object.values(workspaces).filter(ws =>
-      ws.ownerEmail === email ||
-      (ws.collaborators || []).some(c => normEmail(c.email) === email)
-    );
-    setActiveWs(wss[0]?.id ?? null);
-    return { ok: true };
-  };
-
-  const logout = (): void => {
+  const clearSession = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    _tokenRef.current = null;
     setSession(null);
-    setActiveWs(null);
-  };
+    setIsLoading(false);
+    setUserInfo(null);
+    setWorkspace(null);
+    setFileId(null);
+    setIsGuest(false);
+    setNeedsPicker(false);
+    setDriveError(null);
+    Object.values(LS).forEach(k => localStorage.removeItem(k));
+  }, []);
 
-  const switchWorkspace = (wsId: string): void => setActiveWs(wsId);
+  // ----------------------------------------------------------
+  // Own plan bootstrap (not a join flow)
+  // ----------------------------------------------------------
 
-  let activeWorkspace: Workspace | null = activeWs ? workspaces[activeWs] ?? null : null;
-  if (!activeWorkspace && myWorkspaces.length > 0) activeWorkspace = myWorkspaces[0];
-
-  // Verify the user still has access; otherwise nullify
-  if (activeWorkspace && session) {
-    const hasAccess = activeWorkspace.ownerEmail === session ||
-      (activeWorkspace.collaborators || []).some(c => normEmail(c.email) === normEmail(session));
-    if (!hasAccess) activeWorkspace = myWorkspaces[0] ?? null;
-  }
-
-  const myRole = useAM<string | null>(() => {
-    if (!activeWorkspace || !session) return null;
-    if (activeWorkspace.ownerEmail === session) return "Właściciel";
-    const c = (activeWorkspace.collaborators || []).find(c => normEmail(c.email) === normEmail(session));
-    return c?.role ?? null;
-  }, [activeWorkspace, session]);
-
-  const canEdit = myRole === "Właściciel" || myRole === "Edytor";
-
-  const updateActiveData = (data: typeof A_EMPTY): void => {
-    if (!activeWorkspace) return;
-    setWorkspaces({
-      ...workspaces,
-      [activeWorkspace.id]: { ...activeWorkspace, data, updatedAt: Date.now() },
-    });
-  };
-
-  const addCollaborator = (email: string, role: string): AuthResult => {
-    email = normEmail(email);
-    if (!activeWorkspace) return { error: "Brak aktywnego planu" };
-    if (!email) return { error: "Wpisz email" };
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Niepoprawny format email" };
-    if (email === activeWorkspace.ownerEmail) return { error: "Właściciel ma już dostęp" };
-    if ((activeWorkspace.collaborators || []).some(c => normEmail(c.email) === email)) {
-      return { error: "Ta osoba została już zaproszona" };
+  const bootstrapOwnPlan = useCallback(async (
+    accessToken: string,
+    email: string,
+  ) => {
+    let fId = localStorage.getItem(LS.folderId);
+    if (!fId) {
+      fId = await findOrCreateFolder(accessToken, appConfig.googleAppFolderName);
+      localStorage.setItem(LS.folderId, fId);
     }
-    const exists = users.find(u => u.email === email);
-    const collab: Collaborator = {
-      email, role,
-      status: exists ? "Aktywny" : "Zaproszony",
-      addedBy: session,
-      addedAt: Date.now(),
-    };
-    setWorkspaces({
-      ...workspaces,
-      [activeWorkspace.id]: {
-        ...activeWorkspace,
-        collaborators: [...(activeWorkspace.collaborators || []), collab],
-      },
-    });
-    return { ok: true, status: collab.status };
-  };
 
-  const removeCollaborator = (email: string): void => {
-    if (!activeWorkspace) return;
-    setWorkspaces({
-      ...workspaces,
-      [activeWorkspace.id]: {
-        ...activeWorkspace,
-        collaborators: (activeWorkspace.collaborators || []).filter(c => normEmail(c.email) !== normEmail(email)),
-      },
-    });
-  };
+    let dFileId = localStorage.getItem(LS.fileId);
+    if (!dFileId) {
+      dFileId = await findFile(accessToken, fId, DATA_FILE);
+      if (!dFileId) dFileId = await createJsonFile(accessToken, fId, DATA_FILE, EMPTY_DATA);
+      localStorage.setItem(LS.fileId, dFileId);
+    }
 
-  const updateCollaboratorRole = (email: string, role: string): void => {
-    if (!activeWorkspace) return;
-    setWorkspaces({
-      ...workspaces,
-      [activeWorkspace.id]: {
-        ...activeWorkspace,
-        collaborators: (activeWorkspace.collaborators || []).map(c =>
-          normEmail(c.email) === normEmail(email) ? { ...c, role } : c
-        ),
-      },
-    });
-  };
+    let appData: AppData;
+    try {
+      appData = await readJsonFile<AppData>(accessToken, dFileId);
+    } catch {
+      // Stale cache — search again
+      dFileId = await findFile(accessToken, fId, DATA_FILE) ||
+                await createJsonFile(accessToken, fId, DATA_FILE, EMPTY_DATA);
+      localStorage.setItem(LS.fileId, dFileId);
+      appData = await readJsonFile<AppData>(accessToken, dFileId);
+    }
 
-  const renameWorkspace = (name: string): void => {
-    if (!activeWorkspace) return;
-    setWorkspaces({
-      ...workspaces,
-      [activeWorkspace.id]: { ...activeWorkspace, name },
+    setFileId(dFileId);
+    setIsGuest(false);
+    setWorkspace({
+      id:            email,
+      ownerEmail:    email,
+      name:          localStorage.getItem(LS.wsName) || "Mój ślub",
+      data:          { ...EMPTY_DATA, ...appData },
+      collaborators: [],
+      createdAt:     Date.now(),
     });
-  };
+  }, []);
 
-  return {
-    users, workspaces, session, activeWorkspace, currentUser, myWorkspaces, myRole, canEdit,
-    register, login, logout, switchWorkspace,
-    updateActiveData, addCollaborator, removeCollaborator, updateCollaboratorRole, renameWorkspace,
-  };
+  // ----------------------------------------------------------
+  // Main bootstrap after receiving an access token
+  // ----------------------------------------------------------
+
+  const bootstrapDrive = useCallback(async (accessToken: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    _tokenRef.current = accessToken;
+    setIsLoading(true);
+    setDriveError(null);
+
+    try {
+      const info  = await getUserInfo(accessToken);
+      const gUser: GoogleUser = { email: info.email, name: info.name, picture: info.picture };
+      setUserInfo(gUser);
+      setSession(info.email);
+      localStorage.setItem(LS.email, info.email);
+      localStorage.setItem(LS.name,  info.name);
+
+      const joinFileId = readJoinParam();
+
+      if (joinFileId) {
+        // Collaborator flow — open Picker so they can select the shared file.
+        // This grants drive.file access even to files they didn't create.
+        setNeedsPicker(true);
+        setIsGuest(true);
+        setIsLoading(false);
+        return; // Picker will call loadGuestFile() after user selects
+      } else {
+        await bootstrapOwnPlan(accessToken, info.email);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Drive bootstrap error:", msg);
+      setDriveError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [bootstrapOwnPlan]);
+
+  // ----------------------------------------------------------
+  // GIS init
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    if (!appConfig.googleClientId) { setIsLoading(false); return; }
+
+    readJoinParam(); // capture ?join= early
+
+    const hadSession = !!localStorage.getItem(LS.email);
+
+    loadGoogleIdentity().then(() => {
+      tokenClientRef.current = window.google!.accounts.oauth2.initTokenClient({
+        client_id: appConfig.googleClientId,
+        scope: DRIVE_SCOPES,
+        callback: (response: TokenResponse) => {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          if (response.error) { clearSession(); return; }
+          bootstrapDrive(response.access_token);
+        },
+        error_callback: () => clearSession(),
+      });
+
+      if (hadSession) {
+        timeoutRef.current = setTimeout(clearSession, SILENT_RESTORE_TIMEOUT_MS);
+        tokenClientRef.current!.requestAccessToken({ prompt: "" });
+      } else {
+        setIsLoading(false);
+      }
+    }).catch(() => clearSession());
+
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
+  }, [bootstrapDrive, clearSession]);
+
+  // ----------------------------------------------------------
+  // Actions
+  // ----------------------------------------------------------
+
+  const googleLogin = useCallback(() => {
+    if (!tokenClientRef.current) { alert("Odśwież stronę i spróbuj ponownie."); return; }
+    setDriveError(null);
+    tokenClientRef.current.requestAccessToken({ prompt: "select_account" });
+  }, []);
+
+  // Called after collaborator picks a shared file via Google Picker
+  const loadGuestFile = useCallback(async (pickedFileId: string) => {
+    const t = _tokenRef.current;
+    if (!t) return;
+    setIsLoading(true);
+    setNeedsPicker(false);
+    try {
+      const data = await readJsonFile<AppData>(t, pickedFileId);
+      setFileId(pickedFileId);
+      localStorage.setItem(LS.fileId, pickedFileId);
+      setWorkspace({
+        id:            pickedFileId,
+        ownerEmail:    (userInfo?.email) ?? "",
+        name:          "Wspólny plan ślubny",
+        data:          { ...EMPTY_DATA, ...data },
+        collaborators: [],
+        createdAt:     Date.now(),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setDriveError(msg);
+      setNeedsPicker(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userInfo]);
+
+  const logout = useCallback(() => {
+    const t = _tokenRef.current;
+    if (t) { try { window.google?.accounts?.oauth2?.revoke(t, () => {}); } catch {} }
+    clearSession();
+  }, [clearSession]);
+
+  const updateActiveData = useCallback((data: AppData): void => {
+    setWorkspace(prev => prev ? { ...prev, data, updatedAt: Date.now() } : null);
+    const t   = _tokenRef.current;
+    const fid = fileIdRef.current;
+    if (t && fid) updateJsonFile(t, fid, data).catch(console.error);
+  }, []);
+
+  const renameWorkspace = useCallback((name: string): void => {
+    setWorkspace(prev => prev ? { ...prev, name } : null);
+    localStorage.setItem(LS.wsName, name);
+  }, []);
+
+  // ----------------------------------------------------------
+  // Derived / memoized
+  // ----------------------------------------------------------
+
+  const myRole      = session ? (isGuest ? "Edytor" : "Właściciel") : null;
+  // expose loadGuestFile via auth for PickerScreen
+  const _loadGuestFile = loadGuestFile;
+  const canEdit     = myRole === "Właściciel" || myRole === "Edytor";
+  const users       = useMemo(() => userInfo ? [userInfo] : [], [userInfo]);
+  const workspaces  = useMemo<WorkspacesMap>(
+    () => workspace ? { [workspace.id]: workspace } : {},
+    [workspace],
+  );
+  const myWorkspaces = useMemo(() => workspace ? [workspace] : [], [workspace]);
+
+  return useMemo(() => ({
+    session, isLoading, driveError, isGuest, needsPicker, fileId,
+    _loadGuestFile,
+    activeWorkspace: workspace, currentUser: userInfo,
+    myWorkspaces, myRole, canEdit, users, workspaces,
+    googleLogin, logout, updateActiveData, renameWorkspace,
+    login:                  () => ({ ok: true as const }),
+    register:               () => ({ ok: true as const }),
+    switchWorkspace:        () => {},
+    addCollaborator:        () => ({ error: "Użyj panelu Zaproś" }),
+    removeCollaborator:     () => {},
+    updateCollaboratorRole: () => {},
+  }), [
+    session, isLoading, driveError, isGuest, needsPicker, fileId,
+    workspace, userInfo, myWorkspaces, myRole, canEdit, users, workspaces,
+    googleLogin, logout, updateActiveData, renameWorkspace,
+    _loadGuestFile,
+  ]);
 }
 
 // ============================================================
 // AUTH SCREEN
 // ============================================================
-interface AuthScreenProps {
-  auth: AuthState;
-}
 
-function AuthScreen({ auth }: AuthScreenProps) {
-  const [mode, setMode] = useAS<"login" | "register">("login");
-  const [email, setEmail] = useAS("");
-  const [password, setPassword] = useAS("");
-  const [name, setName] = useAS("");
-  const [error, setError] = useAS("");
+interface AuthScreenProps { auth: AuthState; }
 
-  const submit = (e: React.FormEvent) => {
-    e?.preventDefault();
+// PickerScreen — shown to collaborators who need to open a shared file
+export function PickerScreen({ auth }: { auth: AuthState }) {
+  const [picking, setPicking] = useState(false);
+  const [error,   setError]   = useState("");
+
+  const openPicker = async () => {
+    const t = _tokenRef.current;
+    if (!t || !appConfig.googlePickerApiKey) {
+      setError("Brak tokenu lub klucza Picker API. Odśwież stronę.");
+      return;
+    }
+    setPicking(true);
     setError("");
-    const r = mode === "login" ? auth.login(email, password) : auth.register(email, password, name);
-    if (r.error) setError(r.error);
+    try {
+      const result = await openFilePicker(t, appConfig.googlePickerApiKey, "wedding-data");
+      await auth._loadGuestFile(result.fileId);
+    } catch (err) {
+      if (err instanceof Error && err.message !== "Picker cancelled") {
+        setError(err.message);
+      }
+    } finally {
+      setPicking(false);
+    }
   };
-
-  const switchMode = (m: "login" | "register") => { setMode(m); setError(""); };
 
   return (
     <div className="auth">
       <div className="auth__card">
         <div className="auth__eyebrow">— Planner ślubny —</div>
-        <h1 className="auth__title">
-          {mode === "login"
-            ? <React.Fragment>Witamy <em>z powrotem</em></React.Fragment>
-            : <React.Fragment>Zacznij <em>swój plan</em></React.Fragment>}
-        </h1>
+        <h1 className="auth__title">Otwórz <em>wspólny plan</em></h1>
         <p className="auth__sub">
-          {mode === "login"
-            ? "Zaloguj się, by zobaczyć swój plan ślubu"
-            : "Załóż konto, by mieć cały plan w jednym miejscu"}
+          Zostałeś zaproszony do edycji planu ślubnego.<br />
+          Kliknij poniżej, wybierz plik <code>wedding-data.json</code> udostępniony przez właściciela.
         </p>
-
-        <div className="auth__tabs">
-          <button className={"auth__tab " + (mode === "login" ? "is-on" : "")} onClick={() => switchMode("login")}>Logowanie</button>
-          <button className={"auth__tab " + (mode === "register" ? "is-on" : "")} onClick={() => switchMode("register")}>Rejestracja</button>
-        </div>
-
-        <form onSubmit={submit} className="auth__form">
-          {mode === "register" && (
-            <label className="auth__label">
-              <span>Imię <small>(opcjonalnie)</small></span>
-              <input className="auth__input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jak Cię nazywać" />
-            </label>
-          )}
-          <label className="auth__label">
-            <span>Email</span>
-            <input className="auth__input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ty@mail.com" required autoFocus />
-          </label>
-          <label className="auth__label">
-            <span>Hasło</span>
-            <input className="auth__input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
-            {mode === "register" && <small className="muted mono">min. 4 znaki</small>}
-          </label>
-          {error && <div className="auth__error">{error}</div>}
-          <button type="submit" className="btn btn--primary auth__submit">
-            {mode === "login" ? "Zaloguj się" : "Załóż konto i zacznij planować"}
-          </button>
-        </form>
-
+        {error && <div className="auth__error" style={{ marginBottom: 16 }}>{error}</div>}
+        <button
+          className="btn btn--primary auth__submit"
+          onClick={openPicker}
+          disabled={picking}
+        >
+          {picking ? "Otwieranie…" : "Wybierz plik z Google Drive"}
+        </button>
         <div className="auth__note">
-          <span className="mono">Demo · konta przechowywane lokalnie w przeglądarce.</span>
-          <br/>
-          <span className="mono muted">Zarejestruj kilka kont w tej samej przeglądarce, by przetestować zapraszanie do edycji.</span>
+          <button
+            className="btn"
+            style={{ marginTop: 8, width: "100%" }}
+            onClick={() => {
+              localStorage.removeItem(LS.joinFileId);
+              window.location.reload();
+            }}
+          >
+            Zaloguj się na swoje konto zamiast tego
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
+function AuthScreen({ auth }: AuthScreenProps) {
+  if (auth.isLoading) {
+    return (
+      <div className="auth">
+        <div className="auth__card" style={{ textAlign: "center" }}>
+          <div className="auth__eyebrow">— Planner ślubny —</div>
+          <h1 className="auth__title">Wczytywanie <em>danych…</em></h1>
+          <p className="auth__sub">Łączymy się z Google Drive…</p>
+        </div>
+      </div>
+    );
+  }
+  if (!appConfig.googleClientId) {
+    return (
+      <div className="auth">
+        <div className="auth__card">
+          <div className="auth__eyebrow">— Planner ślubny —</div>
+          <h1 className="auth__title">Konfiguracja <em>Google</em></h1>
+          <p className="auth__sub">Brakuje klucza Google Client ID. Utwórz plik <code>.env.local</code>:</p>
+          <pre style={{ background: "var(--bg-alt,#f4f4f4)", padding: "12px 16px", borderRadius: 8, fontSize: 12, marginTop: 16 }}>
+            VITE_GOOGLE_CLIENT_ID=twoj-client-id.apps.googleusercontent.com
+          </pre>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="auth">
+      <div className="auth__card">
+        <div className="auth__eyebrow">— Planner ślubny —</div>
+        <h1 className="auth__title">Witamy <em>w plannerze</em></h1>
+        <p className="auth__sub">
+          Zaloguj się kontem Google — dane przechowywane bezpiecznie na Twoim Google Drive.
+        </p>
+        {auth.driveError && (
+          <div className="auth__error" style={{ marginBottom: 16 }}>Błąd: {auth.driveError}</div>
+        )}
+        <button
+          className="btn btn--primary auth__submit"
+          style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}
+          onClick={() => auth.googleLogin()}
+        >
+          <GoogleIcon />Zaloguj się przez Google
+        </button>
+        <div className="auth__note">
+          <span className="mono">Zakres: <code>drive.file</code> — tylko pliki tej aplikacji.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+    </svg>
+  );
+}
+
 // ============================================================
 // INVITE MODAL
 // ============================================================
+
 interface InviteModalProps {
   auth: AuthState;
   onClose: () => void;
 }
 
 function InviteModal({ auth, onClose }: InviteModalProps) {
-  const [email, setEmail] = useAS("");
-  const [role, setRole] = useAS("Edytor");
-  const [error, setError] = useAS("");
-  const [success, setSuccess] = useAS("");
+  const ws      = auth.activeWorkspace;
+  const isOwner = !auth.isGuest;
 
-  const submit = (e: React.FormEvent) => {
-    e?.preventDefault();
-    setError(""); setSuccess("");
-    const r = auth.addCollaborator(email, role);
-    if (r.error) setError(r.error);
-    else {
-      setSuccess(r.status === "Aktywny"
-        ? `Dodano ${email} — ma dostęp od razu.`
-        : `Zaproszenie zapisane. ${email} zobaczy plan po założeniu konta.`);
+  const [email,        setEmail]        = useState("");
+  const [role,         setRole]         = useState<"writer" | "reader">("writer");
+  const [sending,      setSending]      = useState(false);
+  const [sendError,    setSendError]    = useState("");
+  const [sendSuccess,  setSendSuccess]  = useState("");
+  const [permissions,  setPermissions]  = useState<DrivePermission[] | null>(null);
+  const [loadingPerms, setLoadingPerms] = useState(false);
+  const [copied,       setCopied]       = useState(false);
+
+  const inviteLink = auth.fileId
+    ? `${window.location.origin}${window.location.pathname}?join=${auth.fileId}`
+    : null;
+
+  // Load collaborator list
+  useEffect(() => {
+    if (!isOwner || !auth.fileId || !_tokenRef.current) return;
+    setLoadingPerms(true);
+    listPermissions(_tokenRef.current, auth.fileId)
+      .then(perms => setPermissions(perms.filter(p => p.role !== "owner")))
+      .catch(() => setPermissions([]))
+      .finally(() => setLoadingPerms(false));
+  }, [isOwner, auth.fileId]);
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth.fileId || !_tokenRef.current) {
+      setSendError("Brak tokenu — odśwież stronę.");
+      return;
+    }
+    setSending(true); setSendError(""); setSendSuccess("");
+    try {
+      await shareFile(_tokenRef.current, auth.fileId, email.trim(), role);
+      setSendSuccess(`Zaproszono ${email.trim()} — dostali powiadomienie na maila.`);
       setEmail("");
+      listPermissions(_tokenRef.current, auth.fileId).then(perms =>
+        setPermissions(perms.filter(p => p.role !== "owner"))
+      );
+    } catch {
+      setSendError("Błąd — sprawdź email i spróbuj ponownie.");
+    } finally {
+      setSending(false);
     }
   };
 
-  const ws = auth.activeWorkspace;
-  const isOwner = auth.myRole === "Właściciel";
-  const owner = auth.users.find(u => u.email === ws?.ownerEmail);
+  const handleRemove = async (permId: string) => {
+    if (!auth.fileId || !_tokenRef.current) return;
+    await removePermission(_tokenRef.current, auth.fileId, permId).catch(console.error);
+    setPermissions(prev => prev ? prev.filter(p => p.id !== permId) : prev);
+  };
+
+  const copyLink = () => {
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   if (!ws) return null;
 
   return (
     <div className="modal-scrim" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        {/* Header */}
         <div className="modal__h">
           <div>
-            <div className="mono muted" style={{ marginBottom: 4, letterSpacing: "0.16em", textTransform: "uppercase", fontSize: 10 }}>Współpraca</div>
-            <h2 className="modal__title">Zaproś do <em>edycji</em></h2>
+            <div className="mono muted" style={{ marginBottom: 4, letterSpacing: "0.16em", textTransform: "uppercase", fontSize: 10 }}>
+              {isOwner ? "Współpraca" : "Informacje"}
+            </div>
+            <h2 className="modal__title">
+              {isOwner ? <>Zaproś do <em>edycji</em></> : <>Twój <em>plan ślubny</em></>}
+            </h2>
           </div>
-          <button className="btn btn--ghost btn--icon" onClick={onClose}>
-            <AIcon name="x" />
-          </button>
+          <button className="btn btn--ghost btn--icon" onClick={onClose}><Icon name="x" /></button>
         </div>
 
-        {isOwner ? (
-          <form onSubmit={submit} className="invite__form">
-            <div className="invite__row">
-              <label className="auth__label" style={{ flex: 1 }}>
-                <span>Email osoby</span>
-                <input className="auth__input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="osoba@mail.com" required />
-              </label>
-              <label className="auth__label" style={{ width: 180 }}>
-                <span>Rola</span>
-                <select className="auth__input" value={role} onChange={(e) => setRole(e.target.value)}>
-                  <option value="Edytor">Edytor</option>
-                  <option value="Podgląd">Podgląd</option>
-                </select>
-              </label>
-            </div>
-            {error && <div className="auth__error">{error}</div>}
-            {success && <div className="auth__success">{success}</div>}
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-              <button type="submit" className="btn btn--primary">
-                <AIcon name="plus" size={14} /> Wyślij zaproszenie
-              </button>
-              <span className="muted mono" style={{ fontSize: 11 }}>
-                Edytor: pełna edycja · Podgląd: tylko odczyt
-              </span>
-            </div>
-          </form>
-        ) : (
-          <div className="invite__readonly">
-            <div className="serif-italic" style={{ fontStyle: "italic", fontSize: 18, marginBottom: 6 }}>Masz dostęp jako <strong>{auth.myRole}</strong></div>
-            <div className="muted" style={{ fontSize: 13 }}>Tylko właściciel planu może zapraszać kolejne osoby.</div>
-          </div>
-        )}
-
+        {/* Who's logged in */}
         <div className="invite__list">
-          <div className="ornament">Osoby z dostępem · {1 + (ws.collaborators?.length || 0)}</div>
+          <div className="ornament">Zalogowany jako</div>
           <div className="collab-row collab-row--owner">
-            <div className="avatar" style={{ background: avatarColor(ws.ownerEmail) }}>{initials(owner?.name, ws.ownerEmail)}</div>
+            <AvatarEl user={auth.currentUser} email={ws.ownerEmail} />
             <div className="collab-row__info">
-              <div className="collab-row__name">
-                {owner?.name || ws.ownerEmail}
-                {ws.ownerEmail === auth.session && <span className="muted" style={{ fontWeight: 400 }}> (Ty)</span>}
-              </div>
+              <div className="collab-row__name">{auth.currentUser?.name || ws.ownerEmail}</div>
               <div className="muted mono" style={{ fontSize: 11 }}>{ws.ownerEmail}</div>
             </div>
-            <span className="tag tag--accent">Właściciel</span>
+            <span className="tag tag--accent">{auth.myRole}</span>
           </div>
-          {(ws.collaborators || []).map(c => {
-            const u = auth.users.find(uu => uu.email === c.email);
-            return (
-              <div className="collab-row" key={c.email}>
-                <div className="avatar" style={{ background: avatarColor(c.email) }}>{initials(u?.name, c.email)}</div>
-                <div className="collab-row__info">
-                  <div className="collab-row__name">
-                    {u?.name || c.email}
-                    {c.email === auth.session && <span className="muted" style={{ fontWeight: 400 }}> (Ty)</span>}
-                  </div>
-                  <div className="muted mono" style={{ fontSize: 11 }}>{c.email}</div>
-                </div>
-                {isOwner ? (
-                  <select className="auth__input collab-row__role" value={c.role} onChange={(e) => auth.updateCollaboratorRole(c.email, e.target.value)}>
-                    <option value="Edytor">Edytor</option>
-                    <option value="Podgląd">Podgląd</option>
-                  </select>
-                ) : (
-                  <span className="tag">{c.role}</span>
-                )}
-                <span className={"tag " + (c.status === "Aktywny" ? "tag--ok" : "tag--warn")}>{c.status}</span>
-                {isOwner && (
-                  <button className="btn btn--ghost btn--icon" onClick={() => auth.removeCollaborator(c.email)} title="Usuń dostęp">
-                    <AIcon name="trash" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-          {(ws.collaborators || []).length === 0 && (
-            <div className="muted serif-italic" style={{ padding: "24px 0", textAlign: "center", fontStyle: "italic" }}>
-              Jeszcze nikt nie został zaproszony.
-            </div>
-          )}
         </div>
+
+        {isOwner && (
+          <>
+            {/* Invite form */}
+            <form onSubmit={handleInvite} className="invite__form" style={{ marginTop: 20 }}>
+              <div className="ornament">Zaproś osobę</div>
+              <div className="invite__row" style={{ marginTop: 12 }}>
+                <label className="auth__label" style={{ flex: 1 }}>
+                  <span>Email Google</span>
+                  <input
+                    className="auth__input" type="email" value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="narzeczona@gmail.com" required
+                  />
+                </label>
+                <label className="auth__label" style={{ width: 150 }}>
+                  <span>Rola</span>
+                  <select className="auth__input" value={role}
+                    onChange={e => setRole(e.target.value as "writer" | "reader")}>
+                    <option value="writer">Edytor</option>
+                    <option value="reader">Podgląd</option>
+                  </select>
+                </label>
+              </div>
+              {sendError   && <div className="auth__error"   style={{ marginTop: 6 }}>{sendError}</div>}
+              {sendSuccess && <div className="auth__success" style={{ marginTop: 6 }}>{sendSuccess}</div>}
+              <button type="submit" className="btn btn--primary" disabled={sending} style={{ marginTop: 10 }}>
+                <Icon name="plus" size={14} />{sending ? "Wysyłanie…" : "Wyślij zaproszenie"}
+              </button>
+            </form>
+
+            {/* Invite link */}
+            {inviteLink && (
+              <div style={{ marginTop: 20 }}>
+                <div className="ornament">Link zaproszenia</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+                  <input className="auth__input" readOnly value={inviteLink}
+                    style={{ flex: 1, fontSize: 11 }} />
+                  <button className="btn" onClick={copyLink} style={{ whiteSpace: "nowrap" }}>
+                    {copied ? <><Icon name="check" size={14} /> Skopiowano</> : "Kopiuj link"}
+                  </button>
+                </div>
+                <div className="muted mono" style={{ fontSize: 11, marginTop: 6 }}>
+                  Zaproszona osoba otwiera link i loguje się Google — zobaczy ten plan.
+                </div>
+              </div>
+            )}
+
+            {/* Collaborators list */}
+            <div style={{ marginTop: 20 }}>
+              <div className="ornament">
+                Osoby z dostępem{permissions !== null ? ` · ${permissions.length}` : ""}
+              </div>
+              {loadingPerms && (
+                <div className="muted" style={{ padding: "12px 0", fontSize: 13 }}>Ładowanie…</div>
+              )}
+              {!loadingPerms && permissions?.length === 0 && (
+                <div className="muted serif-italic" style={{ padding: "16px 0", textAlign: "center", fontStyle: "italic" }}>
+                  Jeszcze nikt nie został zaproszony.
+                </div>
+              )}
+              {!loadingPerms && permissions?.map(p => (
+                <div className="collab-row" key={p.id}>
+                  <div className="avatar" style={{ background: avatarColor(p.emailAddress) }}>
+                    {authInitials(p.displayName, p.emailAddress)}
+                  </div>
+                  <div className="collab-row__info">
+                    <div className="collab-row__name">{p.displayName || p.emailAddress}</div>
+                    <div className="muted mono" style={{ fontSize: 11 }}>{p.emailAddress}</div>
+                  </div>
+                  <span className="tag">{p.role === "writer" ? "Edytor" : "Podgląd"}</span>
+                  <button className="btn btn--ghost btn--icon"
+                    onClick={() => handleRemove(p.id)} title="Cofnij dostęp">
+                    <Icon name="trash" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {!isOwner && (
+          <div style={{ marginTop: 20 }}>
+            <div className="ornament">Tryb gościa</div>
+            <div className="muted" style={{ fontSize: 13, padding: "8px 0" }}>
+              Przeglądasz plan udostępniony przez właściciela.
+            </div>
+            <button className="btn" style={{ marginTop: 8 }} onClick={() => {
+              localStorage.removeItem(LS.joinFileId);
+              window.location.reload();
+            }}>
+              Wróć do swojego planu
+            </button>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function AvatarEl({ user, email }: { user: GoogleUser | null; email: string }) {
+  if (user?.picture) {
+    return (
+      <img src={user.picture} alt={user.name} className="avatar"
+        style={{ borderRadius: "50%", objectFit: "cover", width: 36, height: 36 }}
+        referrerPolicy="no-referrer" />
+    );
+  }
+  return (
+    <div className="avatar" style={{ background: avatarColor(email) }}>
+      {authInitials(user?.name, email)}
     </div>
   );
 }
@@ -509,18 +730,18 @@ function InviteModal({ auth, onClose }: InviteModalProps) {
 // ============================================================
 // USER MENU
 // ============================================================
+
 interface UserMenuProps {
   auth: AuthState;
   onInviteClick: () => void;
 }
 
 function UserMenu({ auth, onInviteClick }: UserMenuProps) {
-  const [open, setOpen] = useAS(false);
+  const [open, setOpen] = useState(false);
   const user = auth.currentUser;
-  const ws = auth.activeWorkspace;
   if (!user) return null;
 
-  useAE(() => {
+  React.useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
       if (!(e.target as Element).closest(".user-menu")) setOpen(false);
@@ -532,39 +753,37 @@ function UserMenu({ auth, onInviteClick }: UserMenuProps) {
   return (
     <div className="user-menu">
       <button className="user-menu__trigger" onClick={() => setOpen(!open)} title={user.email}>
-        <span className="avatar avatar--sm" style={{ background: avatarColor(user.email) }}>{initials(user.name, user.email)}</span>
+        {user.picture
+          ? <img src={user.picture} alt={user.name} className="avatar avatar--sm"
+              style={{ borderRadius: "50%", objectFit: "cover" }} referrerPolicy="no-referrer" />
+          : <span className="avatar avatar--sm" style={{ background: avatarColor(user.email) }}>
+              {authInitials(user.name, user.email)}
+            </span>
+        }
       </button>
       {open && (
         <div className="user-menu__pop">
           <div className="user-menu__user">
-            <div className="avatar" style={{ background: avatarColor(user.email) }}>{initials(user.name, user.email)}</div>
+            {user.picture
+              ? <img src={user.picture} alt={user.name} className="avatar"
+                  style={{ borderRadius: "50%", objectFit: "cover", width: 36, height: 36 }}
+                  referrerPolicy="no-referrer" />
+              : <div className="avatar" style={{ background: avatarColor(user.email) }}>
+                  {authInitials(user.name, user.email)}
+                </div>
+            }
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 500 }}>{user.name}</div>
-              <div className="muted mono" style={{ fontSize: 10, overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
+              <div className="muted mono" style={{ fontSize: 10, overflow: "hidden", textOverflow: "ellipsis" }}>
+                {user.email}
+              </div>
             </div>
           </div>
-          {auth.myWorkspaces.length > 1 && (
-            <React.Fragment>
-              <div className="user-menu__div"></div>
-              <div className="user-menu__section">Twoje plany</div>
-              {auth.myWorkspaces.map(w => (
-                <button
-                  className={"user-menu__item " + (w.id === ws?.id ? "is-on" : "")}
-                  key={w.id}
-                  onClick={() => { auth.switchWorkspace(w.id); setOpen(false); }}
-                >
-                  <span style={{ flex: 1, textAlign: "left" }}>{w.name}</span>
-                  <span className="mono muted" style={{ fontSize: 9 }}>
-                    {w.ownerEmail === user.email ? "Właściciel" : "Edytor"}
-                  </span>
-                </button>
-              ))}
-            </React.Fragment>
-          )}
-          <div className="user-menu__div"></div>
+          <div className="user-menu__div" />
           <button className="user-menu__item" onClick={() => { onInviteClick(); setOpen(false); }}>
-            <AIcon name="plus" size={14} /> Zaproś do edycji
+            <Icon name="plus" size={14} /> Zaproś / Współpraca
           </button>
+          <div className="user-menu__div" />
           <button className="user-menu__item user-menu__item--danger" onClick={() => auth.logout()}>
             Wyloguj się
           </button>
@@ -574,4 +793,8 @@ function UserMenu({ auth, onInviteClick }: UserMenuProps) {
   );
 }
 
-export { useAuth, AuthScreen, InviteModal, UserMenu, initials as authInitials, avatarColor };
+// ============================================================
+// EXPORTS
+// ============================================================
+
+export { useAuth, AuthScreen, InviteModal, UserMenu };
