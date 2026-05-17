@@ -122,7 +122,7 @@ function PageTables({ data, set, editing }: PageProps) {
                             {options.map(opt => (
                               <option key={opt.id} value={opt.id}>
                                 {opt.name}
-                                {opt.child ? " (dziecko)" : ""}
+                                {(opt.guestType === "child_half" || opt.guestType === "child_free") ? " (dziecko)" : ""}
                                 {opt.side === "Pan młody" ? " · P.M." : ""}
                                 {opt.side === "Obsługa" ? " · obsługa" : ""}
                               </option>
@@ -132,7 +132,7 @@ function PageTables({ data, set, editing }: PageProps) {
                           g ? (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                               <span style={{ color: "var(--ink)" }}>{g.name}</span>
-                              {g.child && <span className="tag" style={{ fontSize: 9, padding: "2px 6px" }}>dziecko</span>}
+                              {(g.guestType === "child_half" || g.guestType === "child_free") && <span className="tag" style={{ fontSize: 9, padding: "2px 6px" }}>dziecko</span>}
                               {g.side === "Obsługa" && <span className="tag" style={{ fontSize: 9, padding: "2px 6px" }}>obsługa</span>}
                             </span>
                           ) : (

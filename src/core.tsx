@@ -33,6 +33,10 @@ export interface BudgetItem {
   notes: string;
 }
 
+// guestType: "adult" = 100%, "child_half" = 50%, "child_free" = 0%
+// Obsługa (staff) uses the same guestType — "adult" means full price, "child_half" means 50%
+export type GuestType = "adult" | "child_half" | "child_free";
+
 export interface Guest {
   id: string;
   name: string;
@@ -40,12 +44,19 @@ export interface Guest {
   rsvp: string;
   diet: string;
   plusone: boolean;
-  child: boolean;
+  guestType: GuestType;
   phone: string;
   address: string;
   needsAccommodation: boolean;
   needsTransport: boolean;
   giftReceived: boolean;
+  poprawiny: boolean;
+}
+
+export interface VenueSettings {
+  platePrice: string;        // cena za talerzyk (dorosły), staff full
+  afterPartyPlatePrice: string; // cena za talerzyk – poprawiny
+  deposit: string;           // zaliczka
 }
 
 export interface TableItem {
@@ -209,6 +220,7 @@ export interface AppData {
   tasks: Task[];
   budgetTotal: string;
   budgetItems: BudgetItem[];
+  venueSettings: VenueSettings;
   guests: Guest[];
   tables: TableItem[];
   vendors: Vendor[];
@@ -245,6 +257,11 @@ const EMPTY_DATA: AppData = {
   ],
   // budget
   budgetTotal: "",
+  venueSettings: {
+    platePrice: "",
+    afterPartyPlatePrice: "",
+    deposit: "",
+  },
   budgetItems: [
     { id: "b1", category: "Sala weselna", planned: "", actual: "", paid: false, paidDate: "", notes: "" },
     { id: "b2", category: "Catering", planned: "", actual: "", paid: false, paidDate: "", notes: "" },
@@ -258,8 +275,8 @@ const EMPTY_DATA: AppData = {
   ],
   // guests
   guests: [
-    { id: "g1", name: "", side: "Panna młoda", rsvp: "Czeka", diet: "", plusone: false, child: false, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false },
-    { id: "g2", name: "", side: "Pan młody", rsvp: "Czeka", diet: "", plusone: false, child: false, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false },
+    { id: "g1", name: "", side: "Panna młoda", rsvp: "Czeka", diet: "", plusone: false, guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false, poprawiny: false },
+    { id: "g2", name: "", side: "Pan młody", rsvp: "Czeka", diet: "", plusone: false, guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false, poprawiny: false },
   ],
   // tables
   tables: [
