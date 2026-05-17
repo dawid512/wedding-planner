@@ -16,7 +16,9 @@ Zasada:
 - Status: projekt przebudowany na `Vite + React`
 - Status builda: `npm run build` zakonczony sukcesem `2026-05-17`
 - Status deployu: workflow GitHub Pages przygotowany, ale repo nie jest jeszcze wypchniete na GitHub
-- Status git: lokalny branch `main` istnieje i ma pierwszy commit `67d47bb`
+- Status git: zdalny `origin` ustawiony na `https://github.com/dawid512/wedding-planner.git`
+- Status git: lokalny branch `main` istnieje; najnowszy lokalny commit to `43d8256`
+- Status git: push przez HTTPS jeszcze nie przeszedl, bo terminal nie ma autoryzacji do GitHuba
 
 ## Co zostalo zrobione
 
@@ -121,11 +123,10 @@ Obecne ograniczenia:
 
 ## Co jest do zrobienia teraz
 
-1. Utworzyc zdalne repo na GitHubie.
-2. Dodac `remote origin`.
-3. Wypchnac lokalny branch `main`.
-4. Wlaczyc `GitHub Actions` jako source dla `GitHub Pages`.
-5. Potwierdzic, ze deploy przechodzi juz na GitHubie.
+1. Zalogowac terminal do GitHuba albo przelaczyc repo na SSH.
+2. Wypchnac lokalny branch `main`.
+3. Wlaczyc `GitHub Actions` jako source dla `GitHub Pages`.
+4. Potwierdzic, ze deploy przechodzi juz na GitHubie.
 
 ## Co warto zrobic pozniej
 
@@ -173,4 +174,6 @@ Zalecana kolejnosc:
 - zainstalowano zaleznosci npm
 - potwierdzono poprawny `npm run build`
 - potwierdzono, ze istnieje lokalny pierwszy commit `67d47bb`
+- podlaczono `origin` do `https://github.com/dawid512/wedding-planner.git`
+- proba `git push -u origin main` przez HTTPS nie przeszla z powodu braku autoryzacji GitHub w terminalu
 - utworzono ten plik handoff do dalszej pracy agentowej
