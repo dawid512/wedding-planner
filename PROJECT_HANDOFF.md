@@ -15,10 +15,10 @@ Zasada:
 - Data ostatniej aktualizacji tego pliku: `2026-05-17`
 - Status: projekt przebudowany na `Vite + React`
 - Status builda: `npm run build` zakonczony sukcesem `2026-05-17`
-- Status deployu: workflow GitHub Pages przygotowany, ale repo nie jest jeszcze wypchniete na GitHub
+- Status deployu: GitHub Pages dziala poprawnie po wlaczeniu `Source: GitHub Actions`
 - Status git: zdalny `origin` ustawiony na `https://github.com/dawid512/wedding-planner.git`
-- Status git: lokalny branch `main` istnieje; najnowszy lokalny commit to `43d8256`
-- Status git: push przez HTTPS jeszcze nie przeszedl, bo terminal nie ma autoryzacji do GitHuba
+- Status git: lokalny branch `main` jest polaczony z `origin/main`
+- Status Pages: pierwsza proba workflow na GitHubie zwrocila blad `Get Pages site failed`, ale po poprawnym wlaczeniu `Pages -> Source: GitHub Actions` deploy zaczal dzialac
 
 ## Co zostalo zrobione
 
@@ -33,6 +33,7 @@ Zasada:
    - zamieniono globalne zaleznosci `window.*` na importy modulowe
 4. Dodano workflow GitHub Actions do deployu na GitHub Pages:
    `.github/workflows/deploy.yml`
+   Pozniej workflow zaktualizowano do nowszych akcji opartych o Node 24.
 5. Dodano `README.md` z instrukcja lokalnego startu i deployu.
 6. Zainstalowano zaleznosci npm, co utworzylo `package-lock.json` i lokalny katalog `node_modules/`.
 7. Zweryfikowano build produkcyjny:
@@ -101,9 +102,17 @@ Wynik:
    - `index.html`
    - `mobile-preview.html`
 3. Workflow deployu uzywa `npm install`, a nie `npm ci`.
-   Powod: repo ma juz `package-lock.json`, ale workflow byl ustawiony zachowawczo podczas przebudowy i ma byc bardziej odporny na pierwsze uruchomienia.
+   Ten punkt jest juz nieaktualny historycznie.
+   Obecnie workflow uzywa `npm ci`, bo repo ma `package-lock.json`.
 4. Konwersja z `window.*` do importow zostala zrobiona bez zmiany logiki domenowej.
    Jesli pojawia sie regresje, najpierw sprawdzic importy i eksporty, a nie sam UI.
+5. Workflow deployu zostal zaktualizowany do nowszych akcji:
+   - `actions/checkout@v5`
+   - `actions/setup-node@v5`
+   - `actions/configure-pages@v6`
+   - `actions/upload-pages-artifact@v5`
+   - `actions/deploy-pages@v5`
+   To ma usunac warning o deprecacji runtime Node 20 w Actions.
 
 ## Stan funkcjonalny aplikacji
 
@@ -123,10 +132,9 @@ Obecne ograniczenia:
 
 ## Co jest do zrobienia teraz
 
-1. Zalogowac terminal do GitHuba albo przelaczyc repo na SSH.
-2. Wypchnac lokalny branch `main`.
-3. Wlaczyc `GitHub Actions` jako source dla `GitHub Pages`.
-4. Potwierdzic, ze deploy przechodzi juz na GitHubie.
+1. Wypchnac najnowszy commit z poprawionym workflow i zaktualizowanym handoffem.
+2. Potwierdzic, ze nowy workflow z wersjami Node 24 przeszedl juz na GitHubie.
+3. Zachowac ten plik jako stale zrodlo prawdy przy kolejnych zmianach.
 
 ## Co warto zrobic pozniej
 
@@ -176,4 +184,7 @@ Zalecana kolejnosc:
 - potwierdzono, ze istnieje lokalny pierwszy commit `67d47bb`
 - podlaczono `origin` do `https://github.com/dawid512/wedding-planner.git`
 - proba `git push -u origin main` przez HTTPS nie przeszla z powodu braku autoryzacji GitHub w terminalu
+- pierwszy run GitHub Pages na GitHubie zglosil brak skonfigurowanej strony Pages dla repo
+- workflow zaktualizowano do nowszych wersji akcji zgodnych z Node 24
+- po wlaczeniu `Pages -> Source: GitHub Actions` deploy GitHub Pages zaczal dzialac poprawnie
 - utworzono ten plik handoff do dalszej pracy agentowej
