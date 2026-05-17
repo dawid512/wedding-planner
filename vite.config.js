@@ -8,6 +8,10 @@ const rootDir = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
   base: "./",
   plugins: [react()],
+  resolve: {
+    // Prefer .tsx/.ts over .jsx/.js so migrated files take precedence
+    extensions: [".mjs", ".ts", ".tsx", ".js", ".jsx", ".json"],
+  },
   build: {
     rollupOptions: {
       input: {
