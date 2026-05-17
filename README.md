@@ -6,7 +6,7 @@ Aktualna baza projektu:
 
 - `React`
 - `Vite`
-- docelowo `TypeScript`
+- `TypeScript` dodany, migracja w toku
 - `GitHub Pages` do hostingu
 - docelowo `Google OAuth + Google Drive API` jako auth i storage
 
@@ -41,11 +41,21 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 4. Opublikowano projekt na GitHub Pages.
 5. Utworzono i utrzymujemy `PROJECT_HANDOFF.md`.
 6. Ustalono docelowy kierunek: `React + TypeScript + Google OAuth + Google Drive API`.
+7. Dodano TypeScript do repo.
+8. Dodano `tsconfig.json`, `npm run typecheck` i nowy bootstrap `src/main.tsx`.
+9. Przeniesiono glowna powloke aplikacji do `src/app.tsx`.
+10. Dodano startowa konfiguracje i loader pod `Google Identity Services`.
+11. Migracja `src/auth.jsx` → `src/auth.tsx` (pelne typy TS).
+12. Migracja `src/core.jsx` → `src/core.tsx` (interfejsy AppData, PageProps, etc.).
+13. Migracja `src/pages-1.jsx` → `src/pages-1.tsx` (Dashboard, Tasks, Budget, Guests).
+14. Zaktualizowano `src/app.tsx` do korzystania z typow AppData i DataUpdater z core.tsx.
+15. `npm run typecheck` przechodzi bez bledow po migracji.
 
 ## Do zrobienia teraz
 
-1. Dodac `TypeScript` do obecnego repo i zaczac migracje plikow z `jsx` do `tsx/ts`.
-2. Dodac `Google Identity Services`.
+1. Migrowac pozostale pliki aplikacji z `jsx` do `tsx/ts`:
+   `src/pages-2.jsx`, `src/pages-3.jsx`, `src/tweaks-panel.jsx`.
+2. Podlaczyc `Google Identity Services` do obecnego flow logowania.
 3. Dodac warstwe `Google Drive API`.
 4. Zdefiniowac kontrakty plikow JSON:
    `wedding.json`, `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`.
@@ -92,3 +102,5 @@ Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 3. Brak prawdziwego sync engine.
 4. Brak lock systemu.
 5. `localStorage` nadal jest przejsciowym source of truth.
+6. Wiekszosc kodu aplikacji nadal jest jeszcze w `jsx`, mimo dodanego toolingu TypeScript.
+7. Konfiguracja Google jest dopiero przygotowana, ale nie jest jeszcze wpieta do UI logowania.

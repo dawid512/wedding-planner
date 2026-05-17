@@ -33,6 +33,10 @@ Jesli ten plik i `README.md` sa sprzeczne, pierwszenstwo ma ten plik.
    `npm run build` przechodzi
 6. Obecny hosting:
    `GitHub Pages`
+7. Obecny tooling TS:
+   `typescript`, `@types/react`, `@types/react-dom`, `tsconfig.json`, `npm run typecheck`
+8. Obecny stan Google auth:
+   konfiguracja i loader GIS sa dodane, ale logowanie Google nie jest jeszcze wpiete do UI
 
 ## 3. Aktualna architektura docelowa
 
@@ -48,7 +52,7 @@ Jesli ten plik i `README.md` sa sprzeczne, pierwszenstwo ma ten plik.
 ### Frontend
 
 1. `React`
-2. docelowo `TypeScript`
+2. `TypeScript` jest juz dodany i migracja jest w toku
 3. `Vite`
 4. `React Router` jesli bedzie potrzebny do podzialu modulow
 5. prosty store Reactowy jest preferowany nad zbyt ciezkim state managementem
@@ -161,7 +165,7 @@ Zasady:
 ## 6. Co jest teraz w repo
 
 1. `React`
-2. `JSX`, jeszcze nie `TypeScript`
+2. mieszany stan `JSX + TS/TSX`
 3. `localStorage` jako tymczasowy mock storage
 4. mock auth/workspaces
 5. brak prawdziwego Google login
@@ -189,16 +193,16 @@ Wniosek:
    konfiguracja Vite
 6. `.github/workflows/deploy.yml`
    workflow GitHub Pages
-7. `src/main.jsx`
-   bootstrap React
-8. `src/app.jsx`
-   glowna powloka aplikacji
-9. `src/auth.jsx`
-   mock auth/workspace oparty o `localStorage`
-10. `src/core.jsx`
-    dane startowe, helpery, komponenty bazowe
-11. `src/pages-1.jsx`
-    dashboard, tasks, budget, guests
+7. `src/main.tsx`
+   bootstrap React po migracji na TypeScript
+8. `src/app.tsx`
+   glowna powloka aplikacji (zmigrowana do TS)
+9. `src/auth.tsx`
+   mock auth/workspace oparty o `localStorage` (zmigrowany do TS)
+10. `src/core.tsx`
+    dane startowe, helpery, komponenty bazowe, typy domenowe (zmigrowany do TS)
+11. `src/pages-1.tsx`
+    dashboard, tasks, budget, guests (zmigrowany do TS)
 12. `src/pages-2.jsx`
     tables, vendors, schedule, menu, outfits, inspiration, gifts, honeymoon
 13. `src/pages-3.jsx`
@@ -207,6 +211,20 @@ Wniosek:
     panel tweakow
 15. `src/styles.css`
     glowne style
+16. `src/vite-env.d.ts`
+    deklaracje typow Vite
+17. `src/types/project.ts`
+    start wspolnych typow domenowych
+18. `tsconfig.json`
+    konfiguracja TypeScript dla migracji etapowej
+19. `.env.example`
+    przykladowe zmienne srodowiskowe dla integracji Google
+20. `src/config/app-config.ts`
+    centralna konfiguracja runtime dla Google client id i nazwy folderu aplikacji
+21. `src/lib/google-identity.ts`
+    loader skryptu Google Identity Services
+22. `src/types/google-identity.d.ts`
+    deklaracje typow dla `window.google`
 
 ## 8. Zrobione
 
@@ -218,12 +236,35 @@ Wniosek:
 6. Opublikowano dzialajaca wersje na GitHub Pages.
 7. Ustalono finalnie, ze projekt zostaje w React.
 8. Utworzono i utrzymujemy ten plik handoff.
+9. Dodano TypeScript do repo.
+10. Dodano `main.tsx`, `tsconfig.json` i `npm run typecheck`.
+11. Potwierdzono, ze `npm run build` i `npm run typecheck` przechodza po dodaniu TS.
+12. Przeniesiono glowna powloke aplikacji z `app.jsx` do `app.tsx`.
+13. Dodano startowa warstwe pod Google Identity Services:
+    - `.env.example`
+    - `src/config/app-config.ts`
+    - `src/lib/google-identity.ts`
+    - `src/types/google-identity.d.ts`
+14. Zmigrowano `src/auth.jsx` → `src/auth.tsx`:
+    - pelne typy: `User`, `Collaborator`, `Workspace`, `AuthState`, `AuthResult`
+    - eksportowany interfejs `AuthState` do uzycia w innych modulach
+15. Zmigrowano `src/core.jsx` → `src/core.tsx`:
+    - pelne interfejsy domenowe: `AppData`, `Task`, `Guest`, `BudgetItem`, `Vendor`, `OutfitItem` i pozostale
+    - eksportowane typy `PageProps` i `DataUpdater` do uzycia przez strony
+    - typowany `Icon` z `IconName` union type
+16. Zmigrowano `src/pages-1.jsx` → `src/pages-1.tsx`:
+    - `PageDashboard`, `PageTasks`, `PageBudget`, `PageGuests`, `PageHeader`
+    - pelne typy propsow i update funkcji
+17. Zaktualizowano `src/app.tsx` do typow z core.tsx (`AppData`, `DataUpdater`).
+18. `npm run typecheck` przechodzi bez bledow.
 
 ## 9. Do zrobienia teraz
 
-1. Dodac `TypeScript` do repo.
-2. Ustalic bezpieczna strategia migracji plik po pliku z `jsx` do `tsx/ts`.
-3. Dodac `Google Identity Services`.
+1. Migrowac pozostale pliki z `jsx` do `tsx/ts`:
+   - `src/pages-2.jsx`
+   - `src/pages-3.jsx`
+   - `src/tweaks-panel.jsx`
+2. Wpiac `Google Identity Services` do obecnego flow logowania.
 4. Dodac warstwe `Google Drive API`.
 5. Zaprojektowac warstwy:
    - `auth`
@@ -284,3 +325,8 @@ Wniosek:
 4. Potwierdzono dzialajacy build.
 5. Ustalono, ze projekt zostaje w React.
 6. Uporzadkowano dokumentacje i handoff pod aktualny kierunek.
+7. Dodano TypeScript i rozpoczeto migracje kodu etapami.
+8. Dodano startowa konfiguracje pod Google Identity Services.
+9. Zmigrowano `auth.jsx`, `core.jsx`, `pages-1.jsx` do TypeScript.
+10. Zaktualizowano `app.tsx` do nowych typow.
+11. `npm run typecheck` przechodzi bez bledow.

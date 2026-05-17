@@ -2,13 +2,39 @@
 
 import React, { useState as useS, useEffect as useE, useMemo as useM, useCallback as useC } from "react";
 import { EMPTY_DATA, PAGES, Icon } from "./core";
+import type { AppData, DataUpdater } from "./core";
 import { PageDashboard, PageTasks, PageBudget, PageGuests } from "./pages-1";
 import { PageTables, PageVendors, PageSchedule, PageMenu, PageOutfits, PageInspiration, PageGifts, PageHoneymoon } from "./pages-2";
 import { PageEvents, PageMusic, PageDocuments, PagePayments } from "./pages-3";
 import { useAuth, AuthScreen, InviteModal, UserMenu, authInitials, avatarColor } from "./auth";
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio } from "./tweaks-panel";
 
-const PAGE_COMPONENTS = {
+type PlannerAuth = ReturnType<typeof useAuth>;
+type TweakState = { theme: string };
+type PlannerWorkspace = {
+  id: string;
+  name: string;
+  ownerEmail: string;
+  data?: AppData;
+  collaborators?: Array<{
+    email: string;
+    role: string;
+    status?: string;
+  }>;
+};
+type PageMetaWithNum = {
+  id: string;
+  label: string;
+  group: string;
+  num?: number;
+};
+type PlannerPageProps = {
+  data: AppData;
+  set: (updater: DataUpdater) => void;
+  editing: boolean;
+};
+
+const PAGE_COMPONENTS: Record<string, React.ComponentType<PlannerPageProps>> = {
   dashboard: PageDashboard,
   tasks: PageTasks,
   events: PageEvents,
@@ -30,24 +56,21 @@ const PAGE_COMPONENTS = {
 const ROUTE_KEY = "wedding-planner-route-v1";
 
 function App() {
-  const auth = useAuth();
+  const auth = useAuth() as PlannerAuth;
 
-  // Tweaks
   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
     "theme": "light"
   }/*EDITMODE-END*/;
-  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS) as [TweakState, (key: string, value: string) => void];
 
   useE(() => {
     document.documentElement.setAttribute("data-theme", tweaks.theme);
   }, [tweaks.theme]);
 
-  // not logged in → show auth
   if (!auth.session) {
     return <AuthScreen auth={auth} />;
   }
 
-  // logged in but no workspace (edge case: invited user with no active workspace)
   if (!auth.activeWorkspace) {
     return (
       <div className="auth">
@@ -64,12 +87,18 @@ function App() {
   return <PlannerApp auth={auth} tweaks={tweaks} setTweak={setTweak} />;
 }
 
-function PlannerApp({ auth, tweaks, setTweak }) {
-  const ws = auth.activeWorkspace;
-  const savedData = useM(() => ({ ...EMPTY_DATA, ...(ws.data || {}) }), [ws]);
+type PlannerAppProps = {
+  auth: PlannerAuth;
+  tweaks: TweakState;
+  setTweak: (key: string, value: string) => void;
+};
 
-  const [draftData, setDraftData] = useS(null);
-  const [route, setRoute] = useS(() => localStorage.getItem(ROUTE_KEY) || "dashboard");
+function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
+  const ws = auth.activeWorkspace as PlannerWorkspace;
+  const savedData = useM<AppData>(() => ({ ...EMPTY_DATA, ...(ws.data || {}) }), [ws]);
+
+  const [draftData, setDraftData] = useS<AppData | null>(null);
+  const [route, setRoute] = useS<string>(() => localStorage.getItem(ROUTE_KEY) || "dashboard");
   const [sidebarOpen, setSidebarOpen] = useS(false);
   const [inviteOpen, setInviteOpen] = useS(false);
 
@@ -78,39 +107,39 @@ function PlannerApp({ auth, tweaks, setTweak }) {
     setSidebarOpen(false);
   }, [route]);
 
-  // Cancel any in-progress edit when workspace switches
-  useE(() => { setDraftData(null); }, [ws.id]);
+  useE(() => {
+    setDraftData(null);
+  }, [ws.id]);
 
   const editing = draftData !== null;
-  const data = editing ? draftData : savedData;
-  const set = useC((updater) => {
+  const data: AppData = editing ? draftData : savedData;
+  const set = useC((updater: DataUpdater) => {
     if (!editing) return;
-    setDraftData(prev => typeof updater === "function" ? updater(prev) : updater);
+    setDraftData((prev) => typeof updater === "function" ? updater(prev as AppData) : updater);
   }, [editing]);
 
   const startEdit = () => setDraftData(JSON.parse(JSON.stringify(savedData)));
   const cancelEdit = () => setDraftData(null);
   const saveEdit = () => {
-    auth.updateActiveData(draftData);
+    auth.updateActiveData(draftData as AppData);
     setDraftData(null);
   };
 
   const PageComp = PAGE_COMPONENTS[route] || PageDashboard;
-  const currentPage = PAGES.find(p => p.id === route);
+  const currentPage = (PAGES as PageMetaWithNum[]).find((p) => p.id === route);
 
-  const groups = useM(() => {
-    const g = {};
-    PAGES.forEach((p, i) => {
-      if (!g[p.group]) g[p.group] = [];
-      g[p.group].push({ ...p, num: i + 1 });
+  const groups = useM<Record<string, PageMetaWithNum[]>>(() => {
+    const grouped: Record<string, PageMetaWithNum[]> = {};
+    PAGES.forEach((page, i) => {
+      if (!grouped[page.group]) grouped[page.group] = [];
+      grouped[page.group].push({ ...page, num: i + 1 });
     });
-    return g;
+    return grouped;
   }, []);
 
-  // collaborators with active status (incl. owner)
   const activeCollab = [
     { email: ws.ownerEmail, role: "Właściciel" },
-    ...(ws.collaborators || []).filter(c => c.status === "Aktywny").map(c => ({ email: c.email, role: c.role })),
+    ...((ws.collaborators || []).filter((c) => c.status === "Aktywny").map((c) => ({ email: c.email, role: c.role }))),
   ];
   const collabCount = activeCollab.length;
 
@@ -133,34 +162,33 @@ function PlannerApp({ auth, tweaks, setTweak }) {
           {Object.entries(groups).map(([group, items]) => (
             <React.Fragment key={group}>
               <div className="nav__group">{group}</div>
-              {items.map(p => (
+              {items.map((page) => (
                 <button
-                  key={p.id}
-                  className={"nav__item " + (route === p.id ? "is-active" : "")}
-                  onClick={() => setRoute(p.id)}
+                  key={page.id}
+                  className={"nav__item " + (route === page.id ? "is-active" : "")}
+                  onClick={() => setRoute(page.id)}
                 >
-                  <span className="nav__num">{String(p.num).padStart(2, "0")}</span>
-                  <span>{p.label}</span>
+                  <span className="nav__num">{String(page.num).padStart(2, "0")}</span>
+                  <span>{page.label}</span>
                 </button>
               ))}
             </React.Fragment>
           ))}
         </nav>
 
-        {/* collab strip at bottom of sidebar */}
         <div style={{ marginTop: "auto", padding: "16px 28px", borderTop: "1px solid var(--line-soft)" }}>
           <div className="brand__meta" style={{ marginTop: 0, marginBottom: 10 }}>
             Współedytorzy · {collabCount}
           </div>
           <div className="avatar-stack">
-            {activeCollab.slice(0, 6).map(c => (
+            {activeCollab.slice(0, 6).map((collaborator) => (
               <span
-                key={c.email}
+                key={collaborator.email}
                 className="avatar avatar--sm"
-                style={{ background: avatarColor(c.email) }}
-                title={c.email + " · " + c.role}
+                style={{ background: avatarColor(collaborator.email) }}
+                title={collaborator.email + " · " + collaborator.role}
               >
-                {authInitials(null, c.email)}
+                {authInitials(null, collaborator.email)}
               </span>
             ))}
             {collabCount > 6 && (
@@ -238,16 +266,17 @@ function PlannerApp({ auth, tweaks, setTweak }) {
       {inviteOpen && <InviteModal auth={auth} onClose={() => setInviteOpen(false)} />}
 
       <TweaksPanel title="Tweaks">
-        <TweakSection label="Wygląd" />
-        <TweakRadio
-          label="Motyw"
-          value={tweaks.theme}
-          options={[
-            { value: "light", label: "Jasny" },
-            { value: "dark", label: "Ciemny" },
-          ]}
-          onChange={(v) => setTweak("theme", v)}
-        />
+        <TweakSection label="Wygląd">
+          <TweakRadio
+            label="Motyw"
+            value={tweaks.theme}
+            options={[
+              { value: "light", label: "Jasny" },
+              { value: "dark", label: "Ciemny" },
+            ]}
+            onChange={(value: string) => setTweak("theme", value)}
+          />
+        </TweakSection>
       </TweaksPanel>
     </div>
   );
