@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Field, Check, Icon, fmtCurrency, fmtDate, daysUntil, allOutfitTotals } from "./core";
-import type { AppData, DataUpdater, PageProps } from "./core";
+import type { AppData, DataUpdater, PageProps, GuestType } from "./core";
 
 // ============================================================
 // DASHBOARD
@@ -50,21 +50,17 @@ function PageDashboard({ data, set, editing }: PageProps) {
           <div>
             <span className="hero__meta-label">Data</span>
             <span className="hero__meta-val">
-              <Field
-                value={data.couple.date ? fmtDate(data.couple.date) : ""}
-                onChange={(v) => set((d: AppData) => ({ ...d, couple: { ...d.couple, date: v } }))}
-                placeholder="Wybierz datę"
-                editing={editing}
-                inline
-                type={editing ? "date" : "text"}
-              />
-              {editing && (
+              {editing ? (
                 <input
                   type="date"
                   value={data.couple.date || ""}
                   onChange={(e) => set((d: AppData) => ({ ...d, couple: { ...d.couple, date: e.target.value } }))}
-                  style={{ display: "none" }}
+                  style={{ font: "inherit", fontSize: "inherit", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 6px", background: "var(--surface)", color: "inherit" }}
                 />
+              ) : (
+                <span className={!data.couple.date ? "muted" : ""}>
+                  {data.couple.date ? fmtDate(data.couple.date) : "Wybierz datę"}
+                </span>
               )}
             </span>
           </div>
@@ -299,23 +295,68 @@ function PageBudget({ data, set, editing }: PageProps) {
         <div className="row">
           <div className="row__label">Budżet całkowity</div>
           <div className="serif-italic" style={{ fontSize: 24 }}>
-            <Field
-              value={data.budgetTotal}
-              onChange={(v) => set((d: AppData) => ({ ...d, budgetTotal: v }))}
-              placeholder="np. 60000"
-              editing={editing}
-              inline
-              suffix={data.budgetTotal ? " zł" : ""}
-            />
+            {editing ? (
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={data.budgetTotal || ""}
+                placeholder="np. 60000"
+                onChange={(e) => {
+                  const numeric = e.target.value.replace(/[^0-9]/g, "");
+                  set((d: AppData) => ({ ...d, budgetTotal: numeric }));
+                }}
+                style={{ font: "inherit", fontSize: "inherit", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 6px", background: "var(--surface)", color: "inherit", width: "12ch" }}
+              />
+            ) : (
+              <span className={!data.budgetTotal ? "muted" : ""}>
+                {data.budgetTotal ? Number(data.budgetTotal).toLocaleString("pl-PL") + " zł" : "—"}
+              </span>
+            )}
           </div>
         </div>
-        <div className="row">
-          <div className="row__label">Postęp</div>
-          <div>
-            <div className="bar" style={{ marginTop: 10 }}>
-              <div className={"bar__fill " + (pct > 100 ? "bar__fill--over" : pct > 80 ? "bar__fill--warn" : "bar__fill--ok")} style={{ width: pct + "%" }} />
+
+        <div className="row" style={{ alignItems: "flex-start" }}>
+          <div className="row__label" style={{ paddingTop: 4 }}>Postęp</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink-faint)", marginBottom: 8 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--sage)", opacity: 0.5 }} />
+                Planowane <strong style={{ color: "var(--ink)", marginLeft: 4 }}>{fmtCurrency(plannedAll)}</strong>
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: pct > 100 ? "oklch(0.6 0.15 28)" : pct > 80 ? "var(--gold)" : "var(--sage)" }} />
+                Wydane <strong style={{ color: "var(--ink)", marginLeft: 4 }}>{fmtCurrency(actualAll)}</strong>
+              </span>
             </div>
-            <div className="mono mt-8 muted">{pct}% wykorzystane</div>
+
+            {/* Planowane bar */}
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-faint)", marginBottom: 3 }}>
+                <span>Planowane</span>
+                <span className="mono">{total ? Math.round((plannedAll / total) * 100) : 0}%</span>
+              </div>
+              <div style={{ height: 6, background: "var(--line-soft)", borderRadius: 100, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: (total ? Math.min(100, Math.round((plannedAll / total) * 100)) : 0) + "%", background: "var(--sage)", opacity: 0.5, borderRadius: 100, transition: "width .4s ease" }} />
+              </div>
+            </div>
+
+            {/* Wydane bar */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-faint)", marginBottom: 3 }}>
+                <span>Wydane</span>
+                <span className="mono">{pct}%</span>
+              </div>
+              <div style={{ height: 6, background: "var(--line-soft)", borderRadius: 100, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: pct + "%", background: pct > 100 ? "oklch(0.6 0.15 28)" : pct > 80 ? "var(--gold)" : "var(--sage)", borderRadius: 100, transition: "width .4s ease" }} />
+              </div>
+            </div>
+
+            {total > 0 && (
+              <div className="mono muted" style={{ fontSize: 11, marginTop: 8 }}>
+                Pozostało: {fmtCurrency(total - actualAll)}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -430,29 +471,87 @@ function PageBudget({ data, set, editing }: PageProps) {
 const GUEST_SIDES = ["Panna młoda", "Pan młody", "Obsługa"] as const;
 type GuestSide = typeof GUEST_SIDES[number];
 
+const GUEST_TYPE_LABELS: Record<GuestType, string> = {
+  adult: "Dorosły",
+  child_half: "Dziecko 50%",
+  child_free: "Dziecko bezpłatne",
+};
+const STAFF_TYPE_LABELS: Record<GuestType, string> = {
+  adult: "Pełna cena (100%)",
+  child_half: "Połowa ceny (50%)",
+  child_free: "Bezpłatnie (0%)",
+};
+
+function guestPrice(pp: number, gt: GuestType | undefined): number {
+  const t = gt ?? "adult";
+  if (t === "child_free") return 0;
+  if (t === "child_half") return pp * 0.5;
+  return pp;
+}
+
+function NumInput({ value, onChange, placeholder, style }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; style?: React.CSSProperties;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+      style={{ font: "inherit", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 8px", background: "var(--surface)", color: "inherit", width: "10ch", ...style }}
+    />
+  );
+}
+
 function PageGuests({ data, set, editing }: PageProps) {
+  const vs = data.venueSettings ?? { platePrice: "", afterPartyPlatePrice: "", deposit: "" };
+  const pp = parseFloat(vs.platePrice) || 0;
+  const app = parseFloat(vs.afterPartyPlatePrice) || 0;
+  const dep = parseFloat(vs.deposit) || 0;
+
   const addGuest = (side: GuestSide) => set((d: AppData) => ({
     ...d,
-    guests: [...d.guests, { id: "g" + Date.now(), name: "", side, rsvp: "Czeka", diet: "", plusone: false, child: false, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false }],
+    guests: [...d.guests, { id: "g" + Date.now(), name: "", side, rsvp: "Czeka", diet: "", plusone: false, guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false, poprawiny: false }],
   }));
   const removeGuest = (id: string) => set((d: AppData) => ({ ...d, guests: d.guests.filter(g => g.id !== id) }));
   const updateGuest = (id: string, patch: Partial<AppData["guests"][number]>) => set((d: AppData) => ({
     ...d,
     guests: d.guests.map(g => g.id === id ? { ...g, ...patch } : g),
   }));
+  const setVenue = (patch: Partial<typeof vs>) => set((d: AppData) => ({
+    ...d,
+    venueSettings: { ...(d.venueSettings ?? { platePrice: "", afterPartyPlatePrice: "", deposit: "" }), ...patch },
+  }));
 
   const named = data.guests.filter(g => g.name);
+  const active = named.filter(g => g.rsvp !== "Odmowa");
   const confirmed = named.filter(g => g.rsvp === "Potwierdzony").length;
   const declined = named.filter(g => g.rsvp === "Odmowa").length;
   const waiting = named.filter(g => g.rsvp === "Czeka").length;
-  const children = named.filter(g => g.child).length;
+  const childCount = named.filter(g => g.guestType === "child_half" || g.guestType === "child_free").length;
   const accom = named.filter(g => g.needsAccommodation).length;
   const transp = named.filter(g => g.needsTransport).length;
+  const afterPartyCount = named.filter(g => g.poprawiny).length;
+
+  // Cost calculation (all named non-declined guests)
+  const adultsCount = active.filter(g => !g.guestType || g.guestType === "adult").length;
+  const halfCount = active.filter(g => g.guestType === "child_half").length;
+  const freeCount = active.filter(g => g.guestType === "child_free").length;
+  const totalCost = pp > 0 ? (adultsCount * pp) + (halfCount * pp * 0.5) : 0;
+  const afterPartyCost = app > 0 ? afterPartyCount * app : 0;
 
   const rsvpTag = (s: string): string => {
     if (s === "Potwierdzony") return "tag--ok";
     if (s === "Odmowa") return "tag--no";
     return "tag--warn";
+  };
+
+  const guestTypeTag = (gt: GuestType | undefined, isStaff: boolean): string => {
+    const t = gt ?? "adult";
+    if (isStaff) return t === "adult" ? "" : t === "child_half" ? "tag--warn" : "tag--no";
+    return t === "adult" ? "" : t === "child_half" ? "tag--warn" : "tag--ok";
   };
 
   // Group guests by side
@@ -471,21 +570,129 @@ function PageGuests({ data, set, editing }: PageProps) {
       <PageHeader
         eyebrow="04 — Goście"
         title="Lista zaproszonych"
-        sub="Podzielona na stronę pani młodej, pana młodego oraz obsługę. Dla każdego: RSVP, preferencje, +1 i czy to dziecko do 5 lat."
+        sub="Podzielona na stronę pani młodej, pana młodego oraz obsługę. Typ gościa (dorosły / dziecko 50% / bezpłatne) i poprawiny dla każdej osoby."
         stats={[
           { num: named.length, label: "Łącznie" },
           { num: confirmed, label: "Potwierdzeni" },
           { num: waiting, label: "Oczekuje" },
           { num: declined, label: "Odmowa" },
-          { num: children, label: "Dzieci" },
+          { num: childCount, label: "Dzieci" },
+          { num: afterPartyCount, label: "Poprawiny" },
           { num: accom, label: "Nocleg" },
           { num: transp, label: "Transport" },
         ]}
       />
 
+      {/* Venue settings + cost calculator */}
+      <div className="card mb-24">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div>
+            <div className="row__label" style={{ marginBottom: 6 }}>Cena talerzyk (sala)</div>
+            {editing ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <NumInput value={vs.platePrice} onChange={(v) => setVenue({ platePrice: v })} placeholder="np. 200" />
+                <span className="muted">zł / os.</span>
+              </div>
+            ) : (
+              <span className="serif-italic" style={{ fontSize: 20 }}>
+                {vs.platePrice ? Number(vs.platePrice).toLocaleString("pl-PL") + " zł" : "—"}
+              </span>
+            )}
+          </div>
+          <div>
+            <div className="row__label" style={{ marginBottom: 6 }}>Cena talerzyk (poprawiny)</div>
+            {editing ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <NumInput value={vs.afterPartyPlatePrice} onChange={(v) => setVenue({ afterPartyPlatePrice: v })} placeholder="np. 150" />
+                <span className="muted">zł / os.</span>
+              </div>
+            ) : (
+              <span className="serif-italic" style={{ fontSize: 20 }}>
+                {vs.afterPartyPlatePrice ? Number(vs.afterPartyPlatePrice).toLocaleString("pl-PL") + " zł" : "—"}
+              </span>
+            )}
+          </div>
+          <div>
+            <div className="row__label" style={{ marginBottom: 6 }}>Zaliczka</div>
+            {editing ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <NumInput value={vs.deposit} onChange={(v) => setVenue({ deposit: v })} placeholder="np. 5000" />
+                <span className="muted">zł</span>
+              </div>
+            ) : (
+              <span className="serif-italic" style={{ fontSize: 20 }}>
+                {vs.deposit ? Number(vs.deposit).toLocaleString("pl-PL") + " zł" : "—"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Cost breakdown */}
+        {pp > 0 && active.length > 0 && (
+          <div style={{ borderTop: "1px solid var(--line-soft)", paddingTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <div className="row__label" style={{ marginBottom: 8 }}>Kalkulator kosztów sali</div>
+              <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                <tbody>
+                  {adultsCount > 0 && (
+                    <tr>
+                      <td className="muted">Dorośli: {adultsCount} × {pp.toLocaleString("pl-PL")} zł</td>
+                      <td className="mono" style={{ textAlign: "right" }}>{(adultsCount * pp).toLocaleString("pl-PL")} zł</td>
+                    </tr>
+                  )}
+                  {halfCount > 0 && (
+                    <tr>
+                      <td className="muted">Dzieci 50%: {halfCount} × {(pp * 0.5).toLocaleString("pl-PL")} zł</td>
+                      <td className="mono" style={{ textAlign: "right" }}>{(halfCount * pp * 0.5).toLocaleString("pl-PL")} zł</td>
+                    </tr>
+                  )}
+                  {freeCount > 0 && (
+                    <tr>
+                      <td className="muted">Dzieci bezpłatne: {freeCount}</td>
+                      <td className="mono" style={{ textAlign: "right" }}>0 zł</td>
+                    </tr>
+                  )}
+                  <tr style={{ borderTop: "1px solid var(--line-soft)", fontWeight: 600 }}>
+                    <td style={{ paddingTop: 6 }}>Razem ({active.length} os.)</td>
+                    <td className="mono" style={{ textAlign: "right", paddingTop: 6 }}>{totalCost.toLocaleString("pl-PL")} zł</td>
+                  </tr>
+                  {dep > 0 && (
+                    <tr style={{ color: "var(--sage)" }}>
+                      <td>Zaliczka</td>
+                      <td className="mono" style={{ textAlign: "right" }}>−{dep.toLocaleString("pl-PL")} zł</td>
+                    </tr>
+                  )}
+                  {dep > 0 && (
+                    <tr style={{ fontWeight: 600 }}>
+                      <td>Do zapłaty</td>
+                      <td className="mono" style={{ textAlign: "right" }}>{Math.max(0, totalCost - dep).toLocaleString("pl-PL")} zł</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {app > 0 && afterPartyCount > 0 && (
+              <div>
+                <div className="row__label" style={{ marginBottom: 8 }}>Poprawiny</div>
+                <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                  <tbody>
+                    <tr>
+                      <td className="muted">{afterPartyCount} os. × {app.toLocaleString("pl-PL")} zł</td>
+                      <td className="mono" style={{ textAlign: "right" }}>{afterPartyCost.toLocaleString("pl-PL")} zł</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {GUEST_SIDES.map(side => {
         const groupGuests = bySide[side];
         const groupNamed = groupGuests.filter(g => g.name).length;
+        const isStaff = side === "Obsługa";
+        const typeLabels = isStaff ? STAFF_TYPE_LABELS : GUEST_TYPE_LABELS;
         return (
           <div className="section" key={side}>
             <div className="section__h">
@@ -506,7 +713,8 @@ function PageGuests({ data, set, editing }: PageProps) {
                     <th>RSVP</th>
                     <th>Preferencje</th>
                     <th style={{ width: 60, textAlign: "center" }}>+1</th>
-                    <th style={{ width: 70, textAlign: "center" }}>Dziecko<br/><span className="mono muted" style={{ fontSize: 9 }}>do 5 lat</span></th>
+                    <th style={{ minWidth: 120 }}>Typ / cena</th>
+                    <th style={{ width: 80, textAlign: "center" }}>Poprawiny</th>
                     <th style={{ width: 130, textAlign: "center" }}>Logistyka<br/><span className="mono muted" style={{ fontSize: 9 }}>nocleg · trans · prezent</span></th>
                     {editing && <th></th>}
                   </tr>
@@ -514,72 +722,104 @@ function PageGuests({ data, set, editing }: PageProps) {
                 <tbody>
                   {groupGuests.length === 0 && (
                     <tr>
-                      <td colSpan={editing ? 9 : 8} className="muted serif-italic" style={{ textAlign: "center", padding: "24px 14px", fontStyle: "italic" }}>
+                      <td colSpan={editing ? 10 : 9} className="muted serif-italic" style={{ textAlign: "center", padding: "24px 14px", fontStyle: "italic" }}>
                         Brak osób w tej grupie. {editing ? 'Kliknij „Dodaj" poniżej.' : "Włącz tryb edycji, by dodać."}
                       </td>
                     </tr>
                   )}
-                  {groupGuests.map((g, i) => (
-                    <tr key={g.id}>
-                      <td className="mono muted">{String(i + 1).padStart(2, "0")}</td>
-                      <td>
-                        <Field value={g.name} onChange={(v) => updateGuest(g.id, { name: v })} placeholder="np. Anna Kowalska" editing={editing} inline />
-                        {editing && (
-                          <div style={{ marginTop: 6 }}>
-                            <Field value={g.side} onChange={(v) => updateGuest(g.id, { side: v })} editing={editing} inline options={[...GUEST_SIDES]} />
-                          </div>
-                        )}
-                        {editing && (
-                          <div style={{ marginTop: 6 }}>
-                            <Field value={g.address} onChange={(v) => updateGuest(g.id, { address: v })} placeholder="adres (opcjonalnie)" editing={editing} inline />
-                          </div>
-                        )}
-                        {!editing && g.address && <div className="muted mono" style={{ fontSize: 10, marginTop: 2 }}>{g.address}</div>}
-                      </td>
-                      <td>
-                        <Field value={g.phone} onChange={(v) => updateGuest(g.id, { phone: v })} placeholder="+48…" editing={editing} inline />
-                      </td>
-                      <td>
-                        <Field value={g.rsvp} onChange={(v) => updateGuest(g.id, { rsvp: v })} editing={editing} inline options={["Czeka", "Potwierdzony", "Odmowa"]} />
-                        {!editing && <span className={"tag " + rsvpTag(g.rsvp)}>{g.rsvp}</span>}
-                      </td>
-                      <td>
-                        <Field value={g.diet} onChange={(v) => updateGuest(g.id, { diet: v })} placeholder="np. wegetariańskie" editing={editing} inline />
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <Check on={g.plusone} onClick={() => updateGuest(g.id, { plusone: !g.plusone })} />
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <Check on={g.child} onClick={() => updateGuest(g.id, { child: !g.child })} />
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                          <span title="Potrzebny nocleg" style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                            <Check on={g.needsAccommodation} onClick={() => updateGuest(g.id, { needsAccommodation: !g.needsAccommodation })} />
-                          </span>
-                          <span title="Potrzebny transport" style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                            <Check on={g.needsTransport} onClick={() => updateGuest(g.id, { needsTransport: !g.needsTransport })} />
-                          </span>
-                          <span title="Prezent otrzymany" style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                            <Check on={g.giftReceived} onClick={() => updateGuest(g.id, { giftReceived: !g.giftReceived })} />
-                          </span>
-                        </div>
-                      </td>
-                      {editing && (
+                  {groupGuests.map((g, i) => {
+                    const gt: GuestType = (g.guestType as GuestType) ?? "adult";
+                    const unitPrice = guestPrice(pp, gt);
+                    return (
+                      <tr key={g.id}>
+                        <td className="mono muted">{String(i + 1).padStart(2, "0")}</td>
                         <td>
-                          <button className="btn btn--ghost btn--icon" onClick={() => removeGuest(g.id)}>
-                            <Icon name="trash" />
-                          </button>
+                          <Field value={g.name} onChange={(v) => updateGuest(g.id, { name: v })} placeholder="np. Anna Kowalska" editing={editing} inline />
+                          {editing && (
+                            <div style={{ marginTop: 6 }}>
+                              <Field value={g.side} onChange={(v) => updateGuest(g.id, { side: v })} editing={editing} inline options={[...GUEST_SIDES]} />
+                            </div>
+                          )}
+                          {editing && (
+                            <div style={{ marginTop: 6 }}>
+                              <Field value={g.address} onChange={(v) => updateGuest(g.id, { address: v })} placeholder="adres (opcjonalnie)" editing={editing} inline />
+                            </div>
+                          )}
+                          {!editing && g.address && <div className="muted mono" style={{ fontSize: 10, marginTop: 2 }}>{g.address}</div>}
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td>
+                          <Field value={g.phone} onChange={(v) => updateGuest(g.id, { phone: v })} placeholder="+48…" editing={editing} inline />
+                        </td>
+                        <td>
+                          {editing
+                            ? <Field value={g.rsvp} onChange={(v) => updateGuest(g.id, { rsvp: v })} editing={editing} inline options={["Czeka", "Potwierdzony", "Odmowa"]} />
+                            : <span className={"tag " + rsvpTag(g.rsvp)}>{g.rsvp}</span>
+                          }
+                        </td>
+                        <td>
+                          <Field value={g.diet} onChange={(v) => updateGuest(g.id, { diet: v })} placeholder="np. wegetariańskie" editing={editing} inline />
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <Check on={g.plusone} onClick={() => updateGuest(g.id, { plusone: !g.plusone })} />
+                        </td>
+                        <td>
+                          {editing ? (
+                            <select
+                              className="field field--inline is-editing field__input"
+                              value={gt}
+                              onChange={(e) => updateGuest(g.id, { guestType: e.target.value as GuestType })}
+                              style={{ width: "100%" }}
+                            >
+                              {(Object.entries(typeLabels) as [GuestType, string][]).map(([val, lbl]) => (
+                                <option key={val} value={val}>{lbl}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div>
+                              {gt !== "adult" && (
+                                <span className={"tag " + guestTypeTag(gt, isStaff)}>
+                                  {typeLabels[gt]}
+                                </span>
+                              )}
+                              {gt === "adult" && isStaff && <span className="muted" style={{ fontSize: 12 }}>100%</span>}
+                              {pp > 0 && g.rsvp !== "Odmowa" && (
+                                <div className="mono muted" style={{ fontSize: 10, marginTop: 2 }}>{unitPrice.toLocaleString("pl-PL")} zł</div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <Check on={g.poprawiny ?? false} onClick={() => updateGuest(g.id, { poprawiny: !(g.poprawiny ?? false) })} />
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                            <span title="Potrzebny nocleg">
+                              <Check on={g.needsAccommodation} onClick={() => updateGuest(g.id, { needsAccommodation: !g.needsAccommodation })} />
+                            </span>
+                            <span title="Potrzebny transport">
+                              <Check on={g.needsTransport} onClick={() => updateGuest(g.id, { needsTransport: !g.needsTransport })} />
+                            </span>
+                            <span title="Prezent otrzymany">
+                              <Check on={g.giftReceived} onClick={() => updateGuest(g.id, { giftReceived: !g.giftReceived })} />
+                            </span>
+                          </div>
+                        </td>
+                        {editing && (
+                          <td>
+                            <button className="btn btn--ghost btn--icon" onClick={() => removeGuest(g.id)}>
+                              <Icon name="trash" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {editing && (
                 <div className="add-row" style={{ padding: "12px 14px" }}>
                   <button className="btn btn--small" onClick={() => addGuest(side)}>
-                    <Icon name="plus" size={12} /> Dodaj {side === "Obsługa" ? "osobę obsługi" : "gościa"}
+                    <Icon name="plus" size={12} /> Dodaj {isStaff ? "osobę obsługi" : "gościa"}
                   </button>
                 </div>
               )}

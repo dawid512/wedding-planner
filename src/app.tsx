@@ -274,7 +274,7 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
               { value: "light", label: "Jasny" },
               { value: "dark", label: "Ciemny" },
             ]}
-            onChange={(value: string) => setTweak("theme", value)}
+            onChange={(value) => setTweak("theme", value as string)}
           />
         </TweakSection>
       </TweaksPanel>
