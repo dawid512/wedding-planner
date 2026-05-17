@@ -66,20 +66,23 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 29. Naprawiono Vite resolve extensions — `.tsx` ma wyższy priorytet niż `.jsx`.
 30. Usunięto stare pliki `.jsx` zastąpione przez `.tsx`.
 31. Zaimplementowano Google OAuth 2.0 (Google Identity Services Token Client) w `src/auth.tsx`.
-32. Utworzono `src/lib/google-drive.ts` — wrapper Drive API (getUserInfo, findOrCreateFolder, findFile, readJsonFile, createJsonFile, updateJsonFile).
+32. Utworzono `src/lib/google-drive.ts` — wrapper Drive API (getUserInfo, findOrCreateFolder, findFile, readJsonFile, createJsonFile, updateJsonFile, shareFile, listPermissions, removePermission).
 33. Zastąpiono mock auth/localStorage prawdziwym logowaniem Google + zapisem danych w Google Drive.
 34. Zaktualizowano typy `google.accounts.oauth2` w `src/types/google-identity.d.ts`.
 35. `AuthScreen` pokazuje przycisk „Zaloguj przez Google" lub instrukcję konfiguracji gdy brak Client ID.
-36. `npm run typecheck` przechodzi bez błędów.
+36. Utworzono `src/lib/google-picker.ts` — wrapper Google Picker API (wybór pliku przez UI → pełny read+write).
+37. Dodano `VITE_GOOGLE_PICKER_API_KEY` w `src/config/app-config.ts` i `deploy.yml`.
+38. Zaimplementowano uproszczony flow zapraszania: właściciel kopiuje link `?join=FILEID`, osoba otwiera + loguje się = gotowe.
+39. `PickerScreen` — fallback gdy brak bezpośredniego dostępu do pliku (osoba otwiera picker i wybiera plik Drive).
+40. InviteModal: performance fix — `useMemo` + `useCallback` na `useAuth()` eliminuje zbędne re-rendery.
+41. `npm run typecheck` przechodzi bez błędów.
 
 ## Do zrobienia teraz
 
-1. Skonfigurować `VITE_GOOGLE_CLIENT_ID` w `.env.local` (Google Cloud Console → Credentials).
-2. Dodać token refresh — aktualny token GIS wygasa po 1 godz. (automatycznie przez `requestToken`).
-3. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
-4. Dodać soft locks per moduł + heartbeat.
-5. Dodać lepszą obsługę konfliktów (block-write-on-conflict).
-6. Dodać zapraszanie współedytorów przez Google Drive sharing.
+1. Dodać token refresh — aktualny token GIS wygasa po 1 godz.
+2. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
+3. Dodać soft locks per moduł + heartbeat.
+4. Dodać lepszą obsługę konfliktów (block-write-on-conflict).
 
 ## Lokalny start
 
@@ -115,8 +118,7 @@ Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 
 ## Aktualne ograniczenia
 
-1. Wymaga skonfigurowania `VITE_GOOGLE_CLIENT_ID` w `.env.local`.
-2. Token GIS wygasa po 1 godz. — brak automatycznego odświeżania w tle.
-3. Wszystkie dane w jednym pliku `wedding-data.json` (brak podziału domenowego).
-4. Brak soft locks i sync engine.
-5. Brak zapraszania współedytorów (coming soon).
+1. Token GIS wygasa po 1 godz. — brak automatycznego odświeżania w tle.
+2. Wszystkie dane w jednym pliku `wedding-data.json` (brak podziału domenowego).
+3. Brak soft locks i sync engine.
+4. Przy pierwszym zaproszeniu osoba może potrzebować wybrać plik przez Picker (jeśli Drive sharing nie zadziałał automatycznie).

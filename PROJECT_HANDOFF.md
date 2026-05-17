@@ -36,8 +36,8 @@ Jesli ten plik i `README.md` sa sprzeczne, pierwszenstwo ma ten plik.
 7. Obecny tooling TS:
    `typescript`, `@types/react`, `@types/react-dom`, `tsconfig.json`, `npm run typecheck`
 8. Obecny stan Google auth:
-   Google OAuth 2.0 (GIS Token Client) jest w pełni zaimplementowany — `src/auth.tsx` i `src/lib/google-drive.ts`.
-   Wymaga skonfigurowania `VITE_GOOGLE_CLIENT_ID` w `.env.local` (Google Cloud Console → OAuth 2.0 Client ID).
+   Google OAuth 2.0 (GIS Token Client) jest w pełni zaimplementowany — `src/auth.tsx`, `src/lib/google-drive.ts`, `src/lib/google-picker.ts`.
+   `VITE_GOOGLE_CLIENT_ID` i `VITE_GOOGLE_PICKER_API_KEY` skonfigurowane w `.env.local` (lokalnie) i w GitHub Secrets (deploy).
 
 ## 3. Aktualna architektura docelowa
 
@@ -169,9 +169,12 @@ Zasady:
 2. pelny `TypeScript` — wszystkie pliki `src/` zmigrowane do `.tsx/.ts`
 3. prawdziwe Google OAuth 2.0 (GIS Token Client) — zamiast mock auth z `localStorage`
 4. zapis i odczyt danych z `Google Drive` — plik `wedding-data.json` per użytkownik
-5. brak soft locks i sync engine (do zrobienia)
-6. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
-7. dzialajacy UI i deploy
+5. system zapraszania — właściciel kopiuje link `?join=FILEID`, osoba otwiera i loguje się
+6. Google Picker — fallback gdy brak bezpośredniego dostępu do pliku Drive
+7. InviteModal — skopiuj link (główna akcja) + opcjonalny email przez Drive API (w `<details>`)
+8. brak soft locks i sync engine (do zrobienia)
+9. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
+10. dzialajacy UI i deploy
 
 Wniosek:
 
@@ -216,16 +219,18 @@ Wniosek:
 17. `src/types/project.ts`
     start wspolnych typow domenowych
 18. `src/lib/google-drive.ts`
-    wrapper Google Drive REST API: getUserInfo, findOrCreateFolder, findFile, readJsonFile, createJsonFile, updateJsonFile
-19. `tsconfig.json`
+    wrapper Google Drive REST API: getUserInfo, findOrCreateFolder, findFile, readJsonFile, createJsonFile, updateJsonFile, shareFile, listPermissions, removePermission
+19. `src/lib/google-picker.ts`
+    wrapper Google Picker API: loadGapi, loadPickerLib, openFilePicker — zwraca {fileId, fileName} wybranego pliku
+20. `tsconfig.json`
     konfiguracja TypeScript dla migracji etapowej
-19. `.env.example`
+21. `.env.example`
     przykladowe zmienne srodowiskowe dla integracji Google
-20. `src/config/app-config.ts`
-    centralna konfiguracja runtime dla Google client id i nazwy folderu aplikacji
-21. `src/lib/google-identity.ts`
+22. `src/config/app-config.ts`
+    centralna konfiguracja runtime: googleClientId, googleAppFolderName, googlePickerApiKey
+23. `src/lib/google-identity.ts`
     loader skryptu Google Identity Services
-22. `src/types/google-identity.d.ts`
+24. `src/types/google-identity.d.ts`
     deklaracje typow dla `window.google`
 
 ## 8. Zrobione (skrót — pełna historia w sekcji 13)
@@ -289,16 +294,22 @@ Wniosek:
 40. Przywracanie sesji przy odświeżeniu przez `requestToken({ prompt: '' })` z timeoutem 12s.
 41. `InviteModal` i `UserMenu` zaktualizowane — wyświetlają awatar Google, info o planie.
 42. `npm run typecheck` przechodzi bez błędów po pełnej implementacji Google auth.
+43. Dodano `shareFile`, `listPermissions`, `removePermission` do `src/lib/google-drive.ts`.
+44. Utworzono `src/lib/google-picker.ts` — Google Picker API (użytkownik wybiera plik Drive → app ma pełny read+write).
+45. Dodano `googlePickerApiKey` do `src/config/app-config.ts` i `VITE_GOOGLE_PICKER_API_KEY` do `deploy.yml`.
+46. Zaimplementowano `PickerScreen` w `src/auth.tsx` — ekran z przyciskiem "Otwórz plik" gdy brak bezpośredniego dostępu.
+47. Zaimplementowano uproszczony flow join: `?join=FILEID` w URL → próba bezpośredniego odczytu → jeśli 403 → PickerScreen.
+48. Uproszczono `InviteModal`: główna akcja = kopiuj link, email Drive = opcjonalny `<details>` na dole.
+49. InviteModal performance fix: `useMemo` + `useCallback` w `useAuth()` → brak zbędnych re-renderów.
+50. `npm run typecheck` przechodzi bez błędów.
 
 ## 9. Do zrobienia teraz
 
-1. `VITE_GOOGLE_CLIENT_ID` jest juz skonfigurowany w `.env.local` (lokalnie) i w GitHub Secrets (deploy).
-2. Dodac token refresh: token GIS wygasa po 1h — wywolac `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min.
-3. Rozbic `wedding-data.json` na osobne pliki domenowe:
+1. Dodac token refresh: token GIS wygasa po 1h — wywolac `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min.
+2. Rozbic `wedding-data.json` na osobne pliki domenowe:
    `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
-4. Dodac `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porownanie etag/revisionId.
-5. Dodac `src/lib/locks.ts` — soft lock per modul, heartbeat co 10-20s, timeout 60-90s.
-6. Dodac zapraszanie wspolredaktorow przez Google Drive file sharing API.
+3. Dodac `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porownanie etag/revisionId.
+4. Dodac `src/lib/locks.ts` — soft lock per modul, heartbeat co 10-20s, timeout 60-90s.
 
 ## 10. Do zrobienia pozniej
 
@@ -325,6 +336,19 @@ Wniosek:
 5. Traktuj obecny UI jako baze do ewolucyjnej migracji.
 
 ## 13. Dziennik zmian
+
+### 2026-05-17 (Google Picker + invite flow + performance)
+
+1. Dodano `shareFile`, `listPermissions`, `removePermission` do `src/lib/google-drive.ts`.
+2. Utworzono `src/lib/google-picker.ts` — wrapper Picker API bez globalnych deklaracji typów (używa lokalnych interfejsów `GapiWindow`, `GPickerBuilder`, itd.).
+3. Dodano `googlePickerApiKey` do `src/config/app-config.ts` — czytany z `VITE_GOOGLE_PICKER_API_KEY`.
+4. Zaktualizowano `deploy.yml` — dodano `VITE_GOOGLE_PICKER_API_KEY` z GitHub Secrets.
+5. Dodano `PickerScreen` w `src/auth.tsx` — wyświetlany gdy `needsPicker === true`; użytkownik otwiera Picker i wybiera plik.
+6. Uproszczono flow join: URL `?join=FILEID` → próba bezpośredniego odczytu pliku → jeśli 403 → `PickerScreen` jako fallback.
+7. Uproszczono `InviteModal`: kopiowanie linku to główna akcja, email Drive API to opcjonalny `<details>`.
+8. Performance fix w `useAuth()`: `useMemo` na obiekcie zwracanym + `useCallback` na wszystkich akcjach → brak kaskadowych re-renderów.
+9. Dodano `PickerScreen` do `src/app.tsx` (renderowany gdy `auth.needsPicker === true`).
+10. `npm run typecheck` przechodzi bez błędów.
 
 ### 2026-05-17 (Google OAuth + Drive)
 

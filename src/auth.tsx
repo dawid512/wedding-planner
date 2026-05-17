@@ -242,12 +242,29 @@ function useAuth(): AuthState {
       const joinFileId = readJoinParam();
 
       if (joinFileId) {
-        // Collaborator flow — open Picker so they can select the shared file.
-        // This grants drive.file access even to files they didn't create.
-        setNeedsPicker(true);
-        setIsGuest(true);
-        setIsLoading(false);
-        return; // Picker will call loadGuestFile() after user selects
+        // Collaborator flow — try direct file access first (simplest UX).
+        // If the owner shared the file via Drive API, this works immediately.
+        // If access is denied (403), fall back to Picker.
+        try {
+          const data = await readJsonFile<AppData>(accessToken, joinFileId);
+          setFileId(joinFileId);
+          localStorage.setItem(LS.fileId, joinFileId);
+          setIsGuest(true);
+          setWorkspace({
+            id:            joinFileId,
+            ownerEmail:    info.email,
+            name:          "Wspólny plan ślubny",
+            data:          { ...EMPTY_DATA, ...data },
+            collaborators: [],
+            createdAt:     Date.now(),
+          });
+        } catch {
+          // Direct access failed — show Picker as fallback
+          setNeedsPicker(true);
+          setIsGuest(true);
+          setIsLoading(false);
+          return;
+        }
       } else {
         await bootstrapOwnPlan(accessToken, info.email);
       }
@@ -615,50 +632,55 @@ function InviteModal({ auth, onClose }: InviteModalProps) {
 
         {isOwner && (
           <>
-            {/* Invite form */}
-            <form onSubmit={handleInvite} className="invite__form" style={{ marginTop: 20 }}>
-              <div className="ornament">Zaproś osobę</div>
-              <div className="invite__row" style={{ marginTop: 12 }}>
-                <label className="auth__label" style={{ flex: 1 }}>
-                  <span>Email Google</span>
-                  <input
-                    className="auth__input" type="email" value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="narzeczona@gmail.com" required
-                  />
-                </label>
-                <label className="auth__label" style={{ width: 150 }}>
-                  <span>Rola</span>
-                  <select className="auth__input" value={role}
-                    onChange={e => setRole(e.target.value as "writer" | "reader")}>
-                    <option value="writer">Edytor</option>
-                    <option value="reader">Podgląd</option>
-                  </select>
-                </label>
-              </div>
-              {sendError   && <div className="auth__error"   style={{ marginTop: 6 }}>{sendError}</div>}
-              {sendSuccess && <div className="auth__success" style={{ marginTop: 6 }}>{sendSuccess}</div>}
-              <button type="submit" className="btn btn--primary" disabled={sending} style={{ marginTop: 10 }}>
-                <Icon name="plus" size={14} />{sending ? "Wysyłanie…" : "Wyślij zaproszenie"}
-              </button>
-            </form>
-
-            {/* Invite link */}
+                {/* Invite link — main action */}
             {inviteLink && (
               <div style={{ marginTop: 20 }}>
                 <div className="ornament">Link zaproszenia</div>
-                <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+                <p className="muted" style={{ fontSize: 13, margin: "8px 0" }}>
+                  Wyślij ten link osobie, którą chcesz zaprosić — przez WhatsApp, email, cokolwiek. Otwiera link, loguje się Google i gotowe.
+                </p>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input className="auth__input" readOnly value={inviteLink}
                     style={{ flex: 1, fontSize: 11 }} />
-                  <button className="btn" onClick={copyLink} style={{ whiteSpace: "nowrap" }}>
+                  <button className="btn btn--primary" onClick={copyLink} style={{ whiteSpace: "nowrap" }}>
                     {copied ? <><Icon name="check" size={14} /> Skopiowano</> : "Kopiuj link"}
                   </button>
                 </div>
-                <div className="muted mono" style={{ fontSize: 11, marginTop: 6 }}>
-                  Zaproszona osoba otwiera link i loguje się Google — zobaczy ten plan.
-                </div>
               </div>
             )}
+
+            {/* Email invite — optional bonus */}
+            <details style={{ marginTop: 20 }}>
+              <summary className="ornament" style={{ cursor: "pointer", userSelect: "none" }}>
+                Wyślij powiadomienie email (opcjonalnie)
+              </summary>
+              <p className="muted" style={{ fontSize: 12, margin: "8px 0" }}>
+                Osoba dostanie maila od Google że plik został jej udostępniony. Link zaproszenia powyżej wystarczy.
+              </p>
+              <form onSubmit={handleInvite} className="invite__form">
+                <div className="invite__row" style={{ marginTop: 8 }}>
+                  <label className="auth__label" style={{ flex: 1 }}>
+                    <span>Email Google</span>
+                    <input className="auth__input" type="email" value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="narzeczona@gmail.com" required />
+                  </label>
+                  <label className="auth__label" style={{ width: 140 }}>
+                    <span>Rola</span>
+                    <select className="auth__input" value={role}
+                      onChange={e => setRole(e.target.value as "writer" | "reader")}>
+                      <option value="writer">Edytor</option>
+                      <option value="reader">Podgląd</option>
+                    </select>
+                  </label>
+                </div>
+                {sendError   && <div className="auth__error"   style={{ marginTop: 6 }}>{sendError}</div>}
+                {sendSuccess && <div className="auth__success" style={{ marginTop: 6 }}>{sendSuccess}</div>}
+                <button type="submit" className="btn" disabled={sending} style={{ marginTop: 8 }}>
+                  <Icon name="plus" size={14} />{sending ? "Wysyłanie…" : "Wyślij powiadomienie"}
+                </button>
+              </form>
+            </details>
 
             {/* Collaborators list */}
             <div style={{ marginTop: 20 }}>
