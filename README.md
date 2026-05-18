@@ -87,6 +87,10 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 50. **Zmieniono scope OAuth z `drive.file` na `drive`** — `drive.file` zwracał 404 na plikach udostępnionych przez Drive API i blokował Picker (401). Scope `drive` daje pełny dostęp do plików Drive użytkownika, co jest wymagane dla współedycji.
 51. **Naprawiono odświeżanie roli gościa** — przy każdym logowaniu `listPermissions` sprawdza aktualną rolę z Drive i aktualizuje localStorage. Zmiana Edytor→Podgląd przez właściciela jest widoczna po przelogowaniu gościa.
 52. **Dynamiczne sprawdzanie uprawnień** — `switchWorkspace` odświeża rolę async po przełączeniu planu. `updateActiveData` przy 403 z Drive odświeża rolę i pokazuje baner błędu. Baner `drive-error-banner` w UI (kliknij aby zamknąć).
+53. **Naprawiono odświeżanie roli gościa** — przy każdym logowaniu `getFileCapabilities` sprawdza aktualną rolę z Drive i aktualizuje localStorage. Zmiana Edytor→Podgląd przez właściciela widoczna po przelogowaniu gościa.
+54. **Auto-discovery shared plans** — po zalogowaniu `listSharedFiles` (sharedWithMe=true) wykrywa udostępnione plany Drive bez potrzeby linka `?join=FILEID`. Gość widzi plan właściciela po zwykłym logowaniu bez dodatkowego linku.
+55. **Fix: updateActiveData 403** — zamieniono `listPermissions`/`perms.find` na `getFileCapabilities` — autorytatywne sprawdzenie roli.
+56. **Przycisk "Zaproś" tylko dla właściciela** — gość i edytor nie widzą opcji zapraszania.
 
 ## Do zrobienia teraz
 
@@ -131,5 +135,5 @@ Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 1. Token GIS wygasa po 1 godz. — po wygaśnięciu Picker pokazuje błąd z instrukcją ponownego logowania (brak auto-refresh).
 2. Wszystkie dane w jednym pliku `wedding-data.json` (brak podziału domenowego).
 3. Brak soft locks i sync engine.
-4. Przy pierwszym zaproszeniu: właściciel musi wysłać **email przez Drive** (opcja w panelu "Zaproś") — sam link bez emaila nie wystarczy, bo plik nie trafi do Drive gościa. Po emailu wystarczy link `?join=FILEID`.
-5. Role gościa w localStorage mogą być nieaktualne jeśli właściciel zmieni je po dołączeniu — aktualizowane przy ponownym logowaniu.
+4. Przy pierwszym zaproszeniu: właściciel musi wysłać **email przez Drive** (opcja w panelu "Zaproś") — sam link bez emaila nie wystarczy, bo plik nie trafi do Drive gościa. Po emailu gość widzi plan automatycznie po logowaniu (auto-discovery).
+5. Zmiana roli (Edytor→Podgląd) jest widoczna po przelogowaniu gościa — aplikacja sprawdza `capabilities.canEdit` przy każdym logowaniu.

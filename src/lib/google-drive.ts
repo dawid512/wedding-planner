@@ -187,6 +187,45 @@ export async function removePermission(
   if (!r.ok && r.status !== 404) throw new Error(`removePermission failed: ${r.status}`);
 }
 
+/**
+ * Get effective capabilities for the current user on a file.
+ * Works for all roles (owner / writer / reader) and is more reliable
+ * than parsing listPermissions — a reader can only see their own entry
+ * in listPermissions, which can be ambiguous. capabilities.canEdit is
+ * the authoritative answer.
+ */
+export async function getFileCapabilities(
+  token: string,
+  fileId: string,
+): Promise<{ canEdit: boolean }> {
+  const r = await fetch(
+    `${DRIVE_API}/files/${fileId}?fields=capabilities(canEdit)`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!r.ok) throw new Error(`getFileCapabilities failed: ${r.status}`);
+  const { capabilities } = (await r.json()) as { capabilities?: { canEdit?: boolean } };
+  return { canEdit: capabilities?.canEdit ?? false };
+}
+
+/**
+ * List Drive files shared with the current user (sharedWithMe=true) by name.
+ * Used for auto-discovery: guest sees shared wedding plan on login without
+ * needing a ?join= link.
+ */
+export async function listSharedFiles(
+  token: string,
+  fileName: string,
+): Promise<Array<{ id: string; name: string }>> {
+  const q = `name='${fileName}' and sharedWithMe=true and trashed=false`;
+  const r = await fetch(
+    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name)&spaces=drive`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!r.ok) throw new Error(`listSharedFiles failed: ${r.status}`);
+  const { files } = (await r.json()) as { files?: Array<{ id: string; name: string }> };
+  return files || [];
+}
+
 /** Update an existing permission (change role). */
 export async function updatePermission(
   token: string,

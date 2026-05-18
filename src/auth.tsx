@@ -16,6 +16,8 @@ import {
   listPermissions,
   removePermission,
   updatePermission,
+  getFileCapabilities,
+  listSharedFiles,
 } from "./lib/google-drive";
 import type { DrivePermission } from "./lib/google-drive";
 import { openFilePicker } from "./lib/google-picker";
@@ -311,18 +313,15 @@ function useAuth(): AuthState {
         try {
           const data = await readJsonFile<AppData>(token, gp.fileId);
 
-          // Re-check current Drive role on every login — owner may have changed it
+          // Re-check actual role via capabilities — works for all permission levels
+          // (listPermissions can be unreliable for readers; canEdit is authoritative).
           let freshRole: "Edytor" | "Podgląd" = gp.role;
           try {
-            const perms  = await listPermissions(token, gp.fileId);
-            const myPerm = perms.find(p => p.emailAddress === info.email);
-            if (myPerm) freshRole = myPerm.role === "reader" ? "Podgląd" : "Edytor";
-          } catch { /* keep cached role if permissions call fails */ }
+            const caps = await getFileCapabilities(token, gp.fileId);
+            freshRole  = caps.canEdit ? "Edytor" : "Podgląd";
+          } catch { /* keep cached role if capabilities call fails */ }
 
-          // Persist updated role to localStorage if it changed
-          if (freshRole !== gp.role) {
-            upsertGuestPlan({ ...gp, role: freshRole });
-          }
+          if (freshRole !== gp.role) upsertGuestPlan({ ...gp, role: freshRole });
 
           loadedGuests.push({
             id:            gp.fileId,
@@ -344,6 +343,39 @@ function useAuth(): AuthState {
         saveGuestPlans(storedGuests.filter(gp => !failedIds.includes(gp.fileId)));
       }
 
+      // 2b. Auto-discover new shared plans (no join link needed).
+      // Finds wedding-data.json files shared with the user that aren't already loaded.
+      try {
+        const sharedFiles = await listSharedFiles(token, DATA_FILE);
+        await Promise.all(sharedFiles.map(async (sf) => {
+          const alreadyKnown =
+            sf.id === ownWs.fileId ||
+            loadedGuests.some(g => g.fileId === sf.id) ||
+            failedIds.includes(sf.id);
+          if (alreadyKnown) return;
+          try {
+            const data = await readJsonFile<AppData>(token, sf.id);
+            let role: "Edytor" | "Podgląd" = "Podgląd";
+            try {
+              const caps = await getFileCapabilities(token, sf.id);
+              role = caps.canEdit ? "Edytor" : "Podgląd";
+            } catch { /* keep default */ }
+            const ws: Workspace = {
+              id:            sf.id,
+              fileId:        sf.id,
+              ownerEmail:    "",
+              name:          "Wspólny plan ślubny",
+              data:          { ...EMPTY_DATA, ...data },
+              collaborators: [],
+              createdAt:     Date.now(),
+              myRole:        role,
+            };
+            loadedGuests.push(ws);
+            upsertGuestPlan({ fileId: sf.id, name: ws.name, role });
+          } catch { /* file not readable — skip */ }
+        }));
+      } catch { /* listSharedFiles failed — non-critical */ }
+
       // 3. Handle ?join= param
       const joinFileId     = readJoinParam();
       const alreadyLoaded  = joinFileId
@@ -355,12 +387,11 @@ function useAuth(): AuthState {
         try {
           const data = await readJsonFile<AppData>(token, joinFileId);
 
-          // Determine actual role from Drive permissions (never assume "Edytor")
+          // Determine actual role via capabilities (authoritative, works for all levels)
           let joinRole: "Edytor" | "Podgląd" = "Podgląd";
           try {
-            const perms  = await listPermissions(token, joinFileId);
-            const myPerm = perms.find(p => p.emailAddress === info.email);
-            if (myPerm) joinRole = myPerm.role === "reader" ? "Podgląd" : "Edytor";
+            const caps = await getFileCapabilities(token, joinFileId);
+            joinRole   = caps.canEdit ? "Edytor" : "Podgląd";
           } catch { /* keep default */ }
 
           const newWs: Workspace = {
@@ -522,10 +553,8 @@ function useAuth(): AuthState {
         // Drive rejected write — owner likely changed role to reader.
         // Re-fetch permissions and downgrade in state + localStorage.
         try {
-          const email  = localStorage.getItem(LS.email) || "";
-          const perms  = await listPermissions(t, fid);
-          const myPerm = perms.find(p => p.emailAddress === email);
-          if (myPerm?.role === "reader") {
+          const caps = await getFileCapabilities(t, fid);
+          if (!caps.canEdit) {
             setAllWs(prev => prev.map(w =>
               w.id === wsId ? { ...w, myRole: "Podgląd" } : w,
             ));
@@ -556,22 +585,18 @@ function useAuth(): AuthState {
     setNeedsPicker(false);
     localStorage.removeItem(LS.joinFileId);
 
-    // Async role refresh for guest workspaces — silently updates state if role changed
+    // Async role refresh — capabilities API is authoritative (works for all roles)
     const t = _tokenRef.current;
     if (!t || wsId === ownFileIdRef.current) return;
-    const email = localStorage.getItem(LS.email) || "";
-    if (!email) return;
-    listPermissions(t, wsId).then(perms => {
-      const myPerm = perms.find(p => p.emailAddress === email);
-      if (!myPerm) return;
-      const freshRole: "Edytor" | "Podgląd" = myPerm.role === "reader" ? "Podgląd" : "Edytor";
+    getFileCapabilities(t, wsId).then(caps => {
+      const freshRole: "Edytor" | "Podgląd" = caps.canEdit ? "Edytor" : "Podgląd";
       setAllWs(prev => prev.map(w =>
         w.id === wsId ? { ...w, myRole: freshRole } : w,
       ));
       saveGuestPlans(getGuestPlans().map(p =>
         p.fileId === wsId ? { ...p, role: freshRole } : p,
       ));
-    }).catch(() => { /* silent — non-critical */ });
+    }).catch(() => { /* silent */ });
   }, []);
 
   // ----------------------------------------------------------

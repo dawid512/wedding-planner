@@ -316,15 +316,18 @@ Wniosek:
 61. **Fix: Picker 401** — dodano `_tokenAge` ref (timestamp ustawienia tokenu); `PickerScreen.openPicker` sprawdza wiek tokenu (>55 min = zrozumiały błąd zamiast cichego 401 z Pickera).
 62. `npm run typecheck` przechodzi bez błędów po wszystkich fix-ach.
 63. **Zmieniono scope OAuth z `drive.file` na `drive`** — kluczowa poprawka invite flow. `drive.file` scope nie pozwala na odczyt plików udostępnionych przez Drive API (zwraca 404) i blokuje Picker (zwraca 401 bo nie może listować "Shared with me"). Scope `drive` daje pełny read/write do Drive użytkownika, co jest standardem dla aplikacji kolaboracyjnych.
+64. **Naprawiono odświeżanie roli gościa** — przy każdym logowaniu `getFileCapabilities` sprawdza aktualną rolę z Drive i aktualizuje localStorage. Zmiana Edytor→Podgląd przez właściciela jest widoczna po przelogowaniu gościa.
+65. **Auto-discovery shared plans** — po zalogowaniu `listSharedFiles` (sharedWithMe=true) wykrywa udostępnione plany Drive bez potrzeby linka `?join=FILEID`. Gość widzi plan właściciela po zwykłym logowaniu.
+66. **Fix: updateActiveData 403** — zamieniono `listPermissions`/`perms.find` na `getFileCapabilities` w obsłudze 403 przy zapisie. `capabilities.canEdit` jest autorytatywnym sprawdzeniem roli.
+67. **Przycisk "Zaproś" tylko dla właściciela** — zarówno w topbar jak i mobile topbar, przycisk Zaproś jest widoczny tylko gdy `auth.myRole === "Właściciel"`. Gość i Edytor nie widzą opcji zapraszania.
 
 ## 9. Do zrobienia teraz
 
 1. Token refresh: token GIS wygasa po 1h — teraz jest komunikat o wygaśnięciu, ale brak auto-refresh. Docelowo: wywołać `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min i zaktualizować `_tokenRef` + `_tokenAge`.
-2. Przy ponownym logowaniu: sprawdzić aktualną rolę w Drive (listPermissions) i zaktualizować zapisane guestPlans.
-3. Rozbic `wedding-data.json` na osobne pliki domenowe:
+2. Rozbic `wedding-data.json` na osobne pliki domenowe:
    `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
-4. Dodac `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porownanie etag/revisionId.
-5. Dodac `src/lib/locks.ts` — soft lock per modul, heartbeat co 10-20s, timeout 60-90s.
+3. Dodac `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porownanie etag/revisionId.
+4. Dodac `src/lib/locks.ts` — soft lock per modul, heartbeat co 10-20s, timeout 60-90s.
 
 ## 10. Do zrobienia pozniej
 
@@ -379,22 +382,23 @@ Wniosek:
 10. `UserMenu` zaktualizowany — wyświetla awatar Google (zdjęcie profilowe lub inicjały), email, logout.
 11. `npm run typecheck` przechodzi bez błędów.
 
+### 2026-05-18 (fix: getFileCapabilities + auto-discovery + owner-only invite)
+
+1. **Fix: updateActiveData 403** — zamieniono `listPermissions`/`perms.find` na `getFileCapabilities` w obsłudze 403 przy zapisie. `capabilities.canEdit` jest autorytatywnym sprawdzeniem roli (działa dla owner/writer/reader, reader nie musi widzieć własnego wpisu w permissions).
+2. **Fix: odświeżanie roli gościa** — zamieniono `listPermissions` na `getFileCapabilities` w `bootstrapDrive` (pętla stored guests) i w join path. Rola jest odświeżana przy każdym logowaniu — zmiana Edytor→Podgląd przez właściciela widoczna po przelogowaniu gościa.
+3. **Auto-discovery shared plans** — po zalogowaniu `listSharedFiles(token, DATA_FILE)` (sharedWithMe=true) wykrywa udostępnione plany Drive bez potrzeby linka `?join=FILEID`. Gość widzi plan właściciela po zwykłym logowaniu.
+4. **Przycisk "Zaproś" tylko dla właściciela** — w `app.tsx` oba miejsca (topbar desktop + topbar mobile) owinięte `{auth.myRole === "Właściciel" && ...}`. Gość i Edytor nie widzą opcji zapraszania.
+5. Dodano `getFileCapabilities` i `listSharedFiles` do `src/lib/google-drive.ts`.
+6. `npm run typecheck` przechodzi bez błędów.
+
 ### 2026-05-18 (dynamiczne sprawdzanie uprawnień)
 
-1. **`switchWorkspace`**: po przełączeniu na plan gościa wywołuje `listPermissions` async i aktualizuje `myRole` w stanie + localStorage. Użytkownik widzi natychmiastowe przełączenie, a rola aktualizuje się w tle.
-2. **`updateActiveData`**: przy 403 z `updateJsonFile` wywołuje `listPermissions`, zmienia `myRole` na `"Podgląd"` w stanie + localStorage i ustawia `driveError` z komunikatem.
+1. **`switchWorkspace`**: po przełączeniu na plan gościa wywołuje `getFileCapabilities` async i aktualizuje `myRole` w stanie + localStorage. Użytkownik widzi natychmiastowe przełączenie, a rola aktualizuje się w tle.
+2. **`updateActiveData`**: przy 403 z `updateJsonFile` wywołuje sprawdzanie uprawnień, zmienia `myRole` na `"Podgląd"` w stanie + localStorage i ustawia `driveError` z komunikatem.
 3. **`_clearDriveError`**: nowy callback w `AuthState` i implementacja `useCallback(() => setDriveError(null))`.
 4. **`drive-error-banner`** w `src/app.tsx`: pokazywany gdy `auth.driveError` jest ustawiony (żółty baner nad topbarem, klikalny = zamknij). Obsługuje dark mode.
 5. Styl `.drive-error-banner` dodany w `src/styles.css`.
 6. `npm run typecheck` przechodzi bez błędów.
-
-### 2026-05-18 (fix: odświeżanie roli gościa przy logowaniu)
-
-1. **Problem**: rola gościa (`myRole`) była cache'owana w `wp_g_guest_plans` localStorage przy pierwszym dołączeniu i nigdy nie była odświeżana. Właściciel mógł zmienić Edytor→Podgląd przez Drive API, ale gość po przelogowaniu nadal miał starą rolę z cache.
-2. **Fix w `bootstrapDrive`** — przy ładowaniu każdego planu gościa z localStorage teraz wywoływane jest `listPermissions(token, gp.fileId)`, szukana jest permisja dla `info.email`, i jeśli rola się zmieniła — `upsertGuestPlan` aktualizuje localStorage.
-3. **Fix w join path** — przy dołączaniu przez `?join=FILEID` rola była hardcoded na `"Edytor"`. Teraz też sprawdza `listPermissions` i ustawia `"Podgląd"` gdy Drive role = `"reader"`.
-4. Oba miejsca są odporne na błąd `listPermissions` (try/catch, fallback do cached/default).
-5. `npm run typecheck` przechodzi bez błędów.
 
 ### 2026-05-18 (fix invite flow: zmiana scope OAuth drive.file → drive)
 

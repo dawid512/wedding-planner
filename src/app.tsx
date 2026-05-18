@@ -281,9 +281,11 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
             >
               <Icon name={tweaks.theme === "light" ? "moon" : "sun"} />
             </button>
-            <button className="btn" onClick={() => setInviteOpen(true)} title="Zaproś / zarządzaj">
-              <Icon name="plus" size={14} /> Zaproś
-            </button>
+            {auth.myRole === "Właściciel" && (
+              <button className="btn" onClick={() => setInviteOpen(true)} title="Zaproś / zarządzaj">
+                <Icon name="plus" size={14} /> Zaproś
+              </button>
+            )}
             {auth.canEdit && !editing && (
               <button className="btn btn--primary" onClick={startEdit}>
                 <Icon name="edit" size={14} /> Edytuj
