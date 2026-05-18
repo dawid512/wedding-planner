@@ -119,7 +119,9 @@ export function avatarColor(email: string): string {
 // Allows InviteModal (same file) to access the current token
 // without exposing it in the public AuthState interface.
 // ============================================================
-const _tokenRef: { current: string | null } = { current: null };
+const _tokenRef:  { current: string | null } = { current: null };
+/** Timestamp (Date.now()) of when the current token was set — used to detect expiry */
+const _tokenAge:  { current: number }        = { current: 0 };
 
 // ============================================================
 // CONSTANTS
@@ -247,7 +249,12 @@ function useAuth(): AuthState {
     try {
       appData = await readJsonFile<AppData>(token, dFileId);
     } catch {
-      // Stale cache — search again
+      // File inaccessible (deleted or stale ID) — nuke both cached IDs and re-bootstrap fully
+      console.warn("Own plan file inaccessible, re-bootstrapping from scratch…");
+      localStorage.removeItem(LS.fileId);
+      localStorage.removeItem(LS.folderId);
+      fId = await findOrCreateFolder(token, appConfig.googleAppFolderName);
+      localStorage.setItem(LS.folderId, fId);
       dFileId = await findFile(token, fId, DATA_FILE) ||
                 await createJsonFile(token, fId, DATA_FILE, EMPTY_DATA);
       localStorage.setItem(LS.fileId, dFileId);
@@ -275,14 +282,16 @@ function useAuth(): AuthState {
   const bootstrapDrive = useCallback(async (token: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     _tokenRef.current = token;
+    _tokenAge.current  = Date.now();
     setIsLoading(true);
     setDriveError(null);
 
     try {
       const info  = await getUserInfo(token);
       const gUser: GoogleUser = { email: info.email, name: info.name, picture: info.picture };
+      // NOTE: setUserInfo early (needed for permission checks), but setSession is deferred
+      // to the very end so React batches session + workspaces in one render — no flash.
       setUserInfo(gUser);
-      setSession(info.email);
       localStorage.setItem(LS.email, info.email);
       localStorage.setItem(LS.name,  info.name);
 
@@ -342,10 +351,12 @@ function useAuth(): AuthState {
           upsertGuestPlan({ fileId: joinFileId, name: newWs.name, role: "Edytor" });
           localStorage.removeItem(LS.joinFileId);
         } catch {
-          // No direct access — must use Picker (first-time join)
+          // No direct access — must use Picker (first-time join).
+          // Set session atomically with workspaces to avoid intermediate "Brak planu" render.
           const allWorkspaces = [ownWs, ...loadedGuests];
+          setSession(info.email);
           setAllWs(allWorkspaces);
-          setActiveWsId(ownWs.id);  // show own plan in background
+          setActiveWsId(ownWs.id);  // own plan stays in background while picker is shown
           setNeedsPicker(true);
           setIsLoading(false);
           return;
@@ -354,14 +365,15 @@ function useAuth(): AuthState {
         localStorage.removeItem(LS.joinFileId);
       }
 
-      // 4. Build final workspace list + activate
+      // 4. Build final workspace list + activate.
+      // setSession is called here (not earlier) so React 18 batches all three
+      // state updates in one render — eliminates the "Brak planu" flash.
       const allWorkspaces = [ownWs, ...loadedGuests];
-      setAllWs(allWorkspaces);
-
-      // If the join target was freshly loaded, activate it; otherwise own plan
       const joinWs = joinFileId
         ? loadedGuests.find(w => w.fileId === joinFileId)
         : null;
+      setSession(info.email);
+      setAllWs(allWorkspaces);
       setActiveWsId((joinWs ?? ownWs).id);
 
     } catch (err) {
@@ -540,9 +552,15 @@ export function PickerScreen({ auth }: { auth: AuthState }) {
   const [error,   setError]   = useState("");
 
   const openPicker = async () => {
-    const t = _tokenRef.current;
-    if (!t || !appConfig.googlePickerApiKey) {
-      setError("Brak tokenu lub klucza Picker API. Odśwież stronę.");
+    const t          = _tokenRef.current;
+    const tokenAgeMs = Date.now() - _tokenAge.current;
+    if (!t || tokenAgeMs > 55 * 60 * 1000) {
+      // Token expired (GIS tokens last ~1h) — user must re-authenticate
+      setError("Sesja wygasła — wyloguj się i zaloguj ponownie, potem otwórz link zaproszenia raz jeszcze.");
+      return;
+    }
+    if (!appConfig.googlePickerApiKey) {
+      setError("Brak klucza Picker API. Skontaktuj się z administratorem.");
       return;
     }
     setPicking(true);

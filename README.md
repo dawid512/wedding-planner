@@ -81,10 +81,13 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 44. **Zarządzanie rolami**: właściciel zmienia Edytor↔Podgląd i usuwa osoby wprost z panelu "Zaproś".
 45. Dodano `updatePermission()` do `google-drive.ts`.
 46. Eksportowany typ `Workspace` z `auth.tsx` — zawiera `myRole`.
+47. Naprawiono "Brak planu" flash — `setSession` wywoływane atomicznie razem z `setAllWs` na końcu `bootstrapDrive`.
+48. Naprawiono 404 stale file ID — `bootstrapOwnPlan` przy błędzie czyści oba klucze LS i robi pełny re-bootstrap.
+49. Naprawiono Picker 401 — `_tokenAge` ref; `openPicker` sprawdza wiek tokenu przed otwarciem.
 
 ## Do zrobienia teraz
 
-1. Dodać token refresh — aktualny token GIS wygasa po 1 godz.
+1. Dodać token refresh — aktualny token GIS wygasa po 1 godz. (teraz jest komunikat o wygaśnięciu, nie auto-refresh).
 2. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
 3. Dodać soft locks per moduł + heartbeat.
 
@@ -122,7 +125,7 @@ Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 
 ## Aktualne ograniczenia
 
-1. Token GIS wygasa po 1 godz. — brak automatycznego odświeżania w tle.
+1. Token GIS wygasa po 1 godz. — po wygaśnięciu Picker pokazuje błąd z instrukcją ponownego logowania (brak auto-refresh).
 2. Wszystkie dane w jednym pliku `wedding-data.json` (brak podziału domenowego).
 3. Brak soft locks i sync engine.
 4. Przy pierwszym zaproszeniu: właściciel musi wysłać **email przez Drive** (opcja w panelu "Zaproś") — sam link bez emaila nie wystarczy, bo plik nie trafi do Drive gościa.

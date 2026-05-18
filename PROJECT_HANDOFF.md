@@ -311,10 +311,14 @@ Wniosek:
 56. **updatePermission** w `google-drive.ts` — PATCH /files/{id}/permissions/{pid} do zmiany roli.
 57. **clearSession(fullClear?)** — bez arg: zachowuje `wp_g_guest_plans`; `fullClear=true` (logout): czyści wszystko.
 58. Eksportowany typ `Workspace` z `auth.tsx` — używany w `app.tsx`.
+59. **Fix: "Brak planu" flash** — `setSession` przeniesiony na koniec `bootstrapDrive`, wywoływany atomicznie z `setAllWs` + `setActiveWsId` (React 18 batchuje → jeden render bez pośredniego stanu bez workspace).
+60. **Fix: 404 stale file ID** — `bootstrapOwnPlan` catch: czyści oba klucze LS (`wp_g_file_id` + `wp_g_folder_id`) i robi pełny re-bootstrap (findOrCreateFolder → findFile → createJsonFile → readJsonFile).
+61. **Fix: Picker 401** — dodano `_tokenAge` ref (timestamp ustawienia tokenu); `PickerScreen.openPicker` sprawdza wiek tokenu (>55 min = zrozumiały błąd zamiast cichego 401 z Pickera).
+62. `npm run typecheck` przechodzi bez błędów po wszystkich fix-ach.
 
 ## 9. Do zrobienia teraz
 
-1. Dodac token refresh: token GIS wygasa po 1h — wywolac `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min.
+1. Token refresh: token GIS wygasa po 1h — teraz jest komunikat o wygaśnięciu, ale brak auto-refresh. Docelowo: wywołać `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min i zaktualizować `_tokenRef` + `_tokenAge`.
 2. Przy ponownym logowaniu: sprawdzić aktualną rolę w Drive (listPermissions) i zaktualizować zapisane guestPlans.
 3. Rozbic `wedding-data.json` na osobne pliki domenowe:
    `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
@@ -373,6 +377,13 @@ Wniosek:
 9. `InviteModal` uproszczony — info o pliku Drive i folderze. Zapraszanie oznaczone jako "coming soon".
 10. `UserMenu` zaktualizowany — wyświetla awatar Google (zdjęcie profilowe lub inicjały), email, logout.
 11. `npm run typecheck` przechodzi bez błędów.
+
+### 2026-05-18 (bugfixes: "Brak planu" flash + 404 stale ID + Picker 401)
+
+1. **Fix "Brak planu" flash**: `setSession(info.email)` przeniesiony z początku `bootstrapDrive` na sam koniec try-bloku, tuż przed `setAllWs`. W obu ścieżkach (normalna + early-return z catch join) `setSession`, `setAllWs`, `setActiveWsId` wołane synchronicznie → React 18 batchuje je w jeden render → ekran "Brak planu" nie migocze.
+2. **Fix stale file ID 404**: `bootstrapOwnPlan` catch przy niedostępnym pliku teraz czyści oba klucze (`LS.fileId` + `LS.folderId`) i robi pełny re-bootstrap: `findOrCreateFolder` → `findFile || createJsonFile` → `readJsonFile`. Eliminuje pętlę, w której stary folder+plik były w cache ale niedostępne.
+3. **Fix Picker 401**: Dodano `_tokenAge: { current: number }` na poziomie modułu (ustawiany przy każdym `_tokenRef.current = token`). `PickerScreen.openPicker` sprawdza wiek tokenu przed wywołaniem; jeśli >55 min → jasny komunikat "Sesja wygasła — wyloguj i zaloguj ponownie" zamiast cichego 401 z iframe Pickera.
+4. `npm run typecheck` przechodzi bez błędów.
 
 ### 2026-05-17 (cd.)
 
