@@ -76,13 +76,17 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 39. `PickerScreen` — fallback gdy brak bezpośredniego dostępu do pliku (osoba otwiera picker i wybiera plik Drive).
 40. InviteModal: performance fix — `useMemo` + `useCallback` na `useAuth()` eliminuje zbędne re-rendery.
 41. `npm run typecheck` przechodzi bez błędów.
+42. **Multi-workspace**: użytkownik ma własny plan i może dołączyć do wielu gościnnych — przełączanie w sidebar.
+43. **Naprawiono flow zapraszania**: email przez Drive API jest główną akcją; link `?join=FILEID` jest pomocniczy.
+44. **Zarządzanie rolami**: właściciel zmienia Edytor↔Podgląd i usuwa osoby wprost z panelu "Zaproś".
+45. Dodano `updatePermission()` do `google-drive.ts`.
+46. Eksportowany typ `Workspace` z `auth.tsx` — zawiera `myRole`.
 
 ## Do zrobienia teraz
 
 1. Dodać token refresh — aktualny token GIS wygasa po 1 godz.
 2. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
 3. Dodać soft locks per moduł + heartbeat.
-4. Dodać lepszą obsługę konfliktów (block-write-on-conflict).
 
 ## Lokalny start
 
@@ -121,4 +125,5 @@ Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 1. Token GIS wygasa po 1 godz. — brak automatycznego odświeżania w tle.
 2. Wszystkie dane w jednym pliku `wedding-data.json` (brak podziału domenowego).
 3. Brak soft locks i sync engine.
-4. Przy pierwszym zaproszeniu osoba może potrzebować wybrać plik przez Picker (jeśli Drive sharing nie zadziałał automatycznie).
+4. Przy pierwszym zaproszeniu: właściciel musi wysłać **email przez Drive** (opcja w panelu "Zaproś") — sam link bez emaila nie wystarczy, bo plik nie trafi do Drive gościa.
+5. Role gościa w localStorage mogą być nieaktualne jeśli właściciel zmieni je po dołączeniu — aktualizowane przy ponownym logowaniu.

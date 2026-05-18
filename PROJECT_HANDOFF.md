@@ -169,12 +169,13 @@ Zasady:
 2. pelny `TypeScript` — wszystkie pliki `src/` zmigrowane do `.tsx/.ts`
 3. prawdziwe Google OAuth 2.0 (GIS Token Client) — zamiast mock auth z `localStorage`
 4. zapis i odczyt danych z `Google Drive` — plik `wedding-data.json` per użytkownik
-5. system zapraszania — właściciel kopiuje link `?join=FILEID`, osoba otwiera i loguje się
-6. Google Picker — fallback gdy brak bezpośredniego dostępu do pliku Drive
-7. InviteModal — skopiuj link (główna akcja) + opcjonalny email przez Drive API (w `<details>`)
-8. brak soft locks i sync engine (do zrobienia)
-9. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
-10. dzialajacy UI i deploy
+5. multi-workspace — użytkownik ma własny plan + może dołączyć do wielu gościnnych; przełączanie w sidebar
+6. system zapraszania — email przez Drive API (główna akcja) + link `?join=FILEID` (pomocniczy)
+7. zarządzanie rolami — właściciel zmienia Edytor↔Podgląd i usuwa osoby z InviteModal
+8. Google Picker — fallback przy pierwszym dołączeniu (gdy drive.file scope jeszcze nie obejmuje pliku)
+9. brak soft locks i sync engine (do zrobienia)
+10. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
+11. dzialajacy UI i deploy
 
 Wniosek:
 
@@ -302,14 +303,23 @@ Wniosek:
 48. Uproszczono `InviteModal`: główna akcja = kopiuj link, email Drive = opcjonalny `<details>` na dole.
 49. InviteModal performance fix: `useMemo` + `useCallback` w `useAuth()` → brak zbędnych re-renderów.
 50. `npm run typecheck` przechodzi bez błędów.
+51. **Multi-workspace**: `allWs: Workspace[]` w stanie — własny plan (myRole: "Właściciel") + plany gościnne z localStorage `wp_g_guest_plans`.
+52. **Naprawiono join flow**: email przez Drive API jest obowiązkowy żeby plik trafił do Drive gościa; link `?join=FILEID` to skrót — działa po zaproszeniu emailem.
+53. **Role per workspace**: każdy `Workspace` ma `myRole: "Właściciel" | "Edytor" | "Podgląd"`. `canEdit` i `isGuest` pochodne.
+54. **Workspace switcher** w sidebar — widoczny gdy `myWorkspaces.length > 1`. Pokazuje skróty roli (Wł/Ed/Pp).
+55. **InviteModal redesign**: formularz emailowy jest PRIMARY; link pomocniczy; role dropdown + usuń per collaborator.
+56. **updatePermission** w `google-drive.ts` — PATCH /files/{id}/permissions/{pid} do zmiany roli.
+57. **clearSession(fullClear?)** — bez arg: zachowuje `wp_g_guest_plans`; `fullClear=true` (logout): czyści wszystko.
+58. Eksportowany typ `Workspace` z `auth.tsx` — używany w `app.tsx`.
 
 ## 9. Do zrobienia teraz
 
 1. Dodac token refresh: token GIS wygasa po 1h — wywolac `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min.
-2. Rozbic `wedding-data.json` na osobne pliki domenowe:
+2. Przy ponownym logowaniu: sprawdzić aktualną rolę w Drive (listPermissions) i zaktualizować zapisane guestPlans.
+3. Rozbic `wedding-data.json` na osobne pliki domenowe:
    `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
-3. Dodac `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porownanie etag/revisionId.
-4. Dodac `src/lib/locks.ts` — soft lock per modul, heartbeat co 10-20s, timeout 60-90s.
+4. Dodac `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porownanie etag/revisionId.
+5. Dodac `src/lib/locks.ts` — soft lock per modul, heartbeat co 10-20s, timeout 60-90s.
 
 ## 10. Do zrobienia pozniej
 

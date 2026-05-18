@@ -186,3 +186,21 @@ export async function removePermission(
   });
   if (!r.ok && r.status !== 404) throw new Error(`removePermission failed: ${r.status}`);
 }
+
+/** Update an existing permission (change role). */
+export async function updatePermission(
+  token: string,
+  fileId: string,
+  permissionId: string,
+  role: "reader" | "writer",
+): Promise<void> {
+  const r = await fetch(`${DRIVE_API}/files/${fileId}/permissions/${permissionId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ role }),
+  });
+  if (!r.ok) throw new Error(`updatePermission failed: ${r.status}`);
+}

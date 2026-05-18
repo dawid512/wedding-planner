@@ -7,21 +7,11 @@ import { PageDashboard, PageTasks, PageBudget, PageGuests } from "./pages-1";
 import { PageTables, PageVendors, PageSchedule, PageMenu, PageOutfits, PageInspiration, PageGifts, PageHoneymoon } from "./pages-2";
 import { PageEvents, PageMusic, PageDocuments, PagePayments } from "./pages-3";
 import { useAuth, AuthScreen, PickerScreen, InviteModal, UserMenu, authInitials, avatarColor } from "./auth";
+import type { Workspace } from "./auth";
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio } from "./tweaks-panel";
 
 type PlannerAuth = ReturnType<typeof useAuth>;
 type TweakState = { theme: string };
-type PlannerWorkspace = {
-  id: string;
-  name: string;
-  ownerEmail: string;
-  data?: AppData;
-  collaborators?: Array<{
-    email: string;
-    role: string;
-    status?: string;
-  }>;
-};
 type PageMetaWithNum = {
   id: string;
   label: string;
@@ -98,8 +88,8 @@ type PlannerAppProps = {
 };
 
 function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
-  const ws = auth.activeWorkspace as PlannerWorkspace;
-  const savedData = useM<AppData>(() => ({ ...EMPTY_DATA, ...(ws.data || {}) }), [ws]);
+  const ws = auth.activeWorkspace as Workspace;
+  const savedData = useM<AppData>(() => ({ ...EMPTY_DATA, ...ws.data }), [ws]);
 
   const [draftData, setDraftData] = useS<AppData | null>(null);
   const [route, setRoute] = useS<string>(() => localStorage.getItem(ROUTE_KEY) || "dashboard");
@@ -122,14 +112,14 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
     setDraftData((prev) => typeof updater === "function" ? updater(prev as AppData) : updater);
   }, [editing]);
 
-  const startEdit = () => setDraftData(JSON.parse(JSON.stringify(savedData)));
+  const startEdit  = () => setDraftData(JSON.parse(JSON.stringify(savedData)));
   const cancelEdit = () => setDraftData(null);
-  const saveEdit = () => {
+  const saveEdit   = () => {
     auth.updateActiveData(draftData as AppData);
     setDraftData(null);
   };
 
-  const PageComp = PAGE_COMPONENTS[route] || PageDashboard;
+  const PageComp    = PAGE_COMPONENTS[route] || PageDashboard;
   const currentPage = (PAGES as PageMetaWithNum[]).find((p) => p.id === route);
 
   const groups = useM<Record<string, PageMetaWithNum[]>>(() => {
@@ -143,9 +133,14 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
 
   const activeCollab = [
     { email: ws.ownerEmail, role: "Właściciel" },
-    ...((ws.collaborators || []).filter((c) => c.status === "Aktywny").map((c) => ({ email: c.email, role: c.role }))),
+    ...(ws.collaborators || [])
+      .filter((c) => c.status === "Aktywny")
+      .map((c) => ({ email: c.email, role: c.role })),
   ];
   const collabCount = activeCollab.length;
+
+  // Multiple workspaces — shown in sidebar switcher
+  const multipleWs = auth.myWorkspaces.length > 1;
 
   return (
     <div className="app">
@@ -158,7 +153,9 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
             <span className="brand__amp">&amp; {savedData.couple.partner2 || "Imię"}</span>
           </div>
           <div className="brand__meta">
-            {savedData.couple.date ? new Date(savedData.couple.date).toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric" }) : "— · — · ——"}
+            {savedData.couple.date
+              ? new Date(savedData.couple.date).toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric" })
+              : "— · — · ——"}
           </div>
         </div>
 
@@ -180,7 +177,39 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
           ))}
         </nav>
 
-        <div style={{ marginTop: "auto", padding: "16px 28px", borderTop: "1px solid var(--line-soft)" }}>
+        {/* Workspace switcher — shown when user has access to multiple plans */}
+        {multipleWs && (
+          <div style={{ padding: "12px 28px 16px", borderTop: "1px solid var(--line-soft)" }}>
+            <div className="brand__meta" style={{ marginTop: 0, marginBottom: 8 }}>
+              Twoje plany · {auth.myWorkspaces.length}
+            </div>
+            {auth.myWorkspaces.map((wsItem) => {
+              const wsFull  = wsItem as Workspace;
+              const isActive = wsItem.id === ws.id;
+              const roleLabel = wsFull.myRole === "Właściciel" ? "Wł" : wsFull.myRole === "Edytor" ? "Ed" : "Pp";
+              return (
+                <button
+                  key={wsItem.id}
+                  className={"nav__item " + (isActive ? "is-active" : "")}
+                  style={{ marginBottom: 2 }}
+                  onClick={() => auth.switchWorkspace(wsItem.id)}
+                >
+                  <span
+                    className="nav__num"
+                    style={{ fontWeight: wsFull.myRole === "Właściciel" ? 700 : 400, letterSpacing: 0 }}
+                  >
+                    {roleLabel}
+                  </span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {wsItem.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ marginTop: multipleWs ? 0 : "auto", padding: "16px 28px", borderTop: "1px solid var(--line-soft)" }}>
           <div className="brand__meta" style={{ marginTop: 0, marginBottom: 10 }}>
             Współedytorzy · {collabCount}
           </div>
