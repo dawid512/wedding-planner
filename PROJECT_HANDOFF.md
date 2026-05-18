@@ -379,6 +379,15 @@ Wniosek:
 10. `UserMenu` zaktualizowany — wyświetla awatar Google (zdjęcie profilowe lub inicjały), email, logout.
 11. `npm run typecheck` przechodzi bez błędów.
 
+### 2026-05-18 (dynamiczne sprawdzanie uprawnień)
+
+1. **`switchWorkspace`**: po przełączeniu na plan gościa wywołuje `listPermissions` async i aktualizuje `myRole` w stanie + localStorage. Użytkownik widzi natychmiastowe przełączenie, a rola aktualizuje się w tle.
+2. **`updateActiveData`**: przy 403 z `updateJsonFile` wywołuje `listPermissions`, zmienia `myRole` na `"Podgląd"` w stanie + localStorage i ustawia `driveError` z komunikatem.
+3. **`_clearDriveError`**: nowy callback w `AuthState` i implementacja `useCallback(() => setDriveError(null))`.
+4. **`drive-error-banner`** w `src/app.tsx`: pokazywany gdy `auth.driveError` jest ustawiony (żółty baner nad topbarem, klikalny = zamknij). Obsługuje dark mode.
+5. Styl `.drive-error-banner` dodany w `src/styles.css`.
+6. `npm run typecheck` przechodzi bez błędów.
+
 ### 2026-05-18 (fix: odświeżanie roli gościa przy logowaniu)
 
 1. **Problem**: rola gościa (`myRole`) była cache'owana w `wp_g_guest_plans` localStorage przy pierwszym dołączeniu i nigdy nie była odświeżana. Właściciel mógł zmienić Edytor→Podgląd przez Drive API, ale gość po przelogowaniu nadal miał starą rolę z cache.

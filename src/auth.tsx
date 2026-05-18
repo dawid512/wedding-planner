@@ -86,6 +86,7 @@ export interface AuthState {
   renameWorkspace: (name: string) => void;
   switchWorkspace: (wsId: string) => void;
   _loadGuestFile: (fileId: string) => Promise<void>;
+  _clearDriveError: () => void;
 
   // Stub backward compat
   login: (email: string, password: string) => AuthResult;
@@ -507,12 +508,37 @@ function useAuth(): AuthState {
 
   const updateActiveData = useCallback((data: AppData): void => {
     const wsId = activeWsIdRef.current;
+    // Optimistic update — UI reflects new data immediately
     setAllWs(prev => prev.map(w =>
       w.id === wsId ? { ...w, data, updatedAt: Date.now() } : w,
     ));
     const t   = _tokenRef.current;
     const fid = fileIdRef.current;
-    if (t && fid) updateJsonFile(t, fid, data).catch(console.error);
+    if (!t || !fid) return;
+
+    updateJsonFile(t, fid, data).catch(async (err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("403")) {
+        // Drive rejected write — owner likely changed role to reader.
+        // Re-fetch permissions and downgrade in state + localStorage.
+        try {
+          const email  = localStorage.getItem(LS.email) || "";
+          const perms  = await listPermissions(t, fid);
+          const myPerm = perms.find(p => p.emailAddress === email);
+          if (myPerm?.role === "reader") {
+            setAllWs(prev => prev.map(w =>
+              w.id === wsId ? { ...w, myRole: "Podgląd" } : w,
+            ));
+            saveGuestPlans(getGuestPlans().map(p =>
+              p.fileId === fid ? { ...p, role: "Podgląd" } : p,
+            ));
+          }
+        } catch { /* ignore — best-effort */ }
+        setDriveError("Właściciel zmienił Twój dostęp na Podgląd. Zmiany nie zostały zapisane.");
+      } else {
+        console.error("updateActiveData Drive error:", msg);
+      }
+    });
   }, []);
 
   const renameWorkspace = useCallback((name: string): void => {
@@ -529,6 +555,23 @@ function useAuth(): AuthState {
     setActiveWsId(wsId);
     setNeedsPicker(false);
     localStorage.removeItem(LS.joinFileId);
+
+    // Async role refresh for guest workspaces — silently updates state if role changed
+    const t = _tokenRef.current;
+    if (!t || wsId === ownFileIdRef.current) return;
+    const email = localStorage.getItem(LS.email) || "";
+    if (!email) return;
+    listPermissions(t, wsId).then(perms => {
+      const myPerm = perms.find(p => p.emailAddress === email);
+      if (!myPerm) return;
+      const freshRole: "Edytor" | "Podgląd" = myPerm.role === "reader" ? "Podgląd" : "Edytor";
+      setAllWs(prev => prev.map(w =>
+        w.id === wsId ? { ...w, myRole: freshRole } : w,
+      ));
+      saveGuestPlans(getGuestPlans().map(p =>
+        p.fileId === wsId ? { ...p, role: freshRole } : p,
+      ));
+    }).catch(() => { /* silent — non-critical */ });
   }, []);
 
   // ----------------------------------------------------------
@@ -546,9 +589,12 @@ function useAuth(): AuthState {
     [allWs],
   );
 
+  const clearDriveError = useCallback(() => setDriveError(null), []);
+
   return useMemo(() => ({
     session, isLoading, driveError, isGuest, needsPicker, fileId,
     _loadGuestFile:    loadGuestFile,
+    _clearDriveError:  clearDriveError,
     activeWorkspace,   currentUser: userInfo,
     myWorkspaces:      allWs,
     myRole,            canEdit,
@@ -563,7 +609,7 @@ function useAuth(): AuthState {
     session, isLoading, driveError, isGuest, needsPicker, fileId,
     activeWorkspace, userInfo, allWs, myRole, canEdit, users, wsMap,
     googleLogin, logout, updateActiveData, renameWorkspace, switchWorkspace,
-    loadGuestFile,
+    loadGuestFile, clearDriveError,
   ]);
 }
 

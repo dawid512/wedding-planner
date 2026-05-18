@@ -251,6 +251,16 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
           <UserMenu auth={auth} onInviteClick={() => setInviteOpen(true)} />
         </div>
 
+        {auth.driveError && (
+          <div
+            className="drive-error-banner"
+            onClick={() => auth._clearDriveError()}
+            title="Kliknij aby zamknąć"
+          >
+            ⚠ {auth.driveError}
+          </div>
+        )}
+
         <div className="topbar">
           <div className="topbar__crumbs">
             <span>Planner</span>

@@ -1365,6 +1365,22 @@ select.field__input {
   .collab-row > .tag { grid-column: 3; grid-row: 1; }
 }
 
+/* Drive error banner — shown above topbar when save/permission error occurs */
+.drive-error-banner {
+  background: #fff3cd;
+  color: #856404;
+  border-bottom: 1px solid #ffc107;
+  padding: 8px 20px;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+}
+[data-theme="dark"] .drive-error-banner {
+  background: #3a2e00;
+  color: #ffd966;
+  border-bottom-color: #856404;
+}
+
 /* read-only banner */
 .viewer-banner {
   display: inline-flex;
