@@ -138,7 +138,10 @@ const LS = {
 };
 
 const DATA_FILE              = "wedding-data.json";
-const DRIVE_SCOPES           = "https://www.googleapis.com/auth/drive.file openid email profile";
+// drive scope = full read/write to all Drive files the user has permission on.
+// drive.file alone was too restrictive: files shared via Drive API returned 404
+// and the Picker returned 401 when trying to list "Shared with me" files.
+const DRIVE_SCOPES           = "https://www.googleapis.com/auth/drive openid email profile";
 const SILENT_RESTORE_TIMEOUT = 12_000;
 
 // ============================================================
@@ -676,7 +679,7 @@ function AuthScreen({ auth }: AuthScreenProps) {
           <GoogleIcon />Zaloguj się przez Google
         </button>
         <div className="auth__note">
-          <span className="mono">Zakres: <code>drive.file</code> — tylko pliki tej aplikacji.</span>
+          <span className="mono">Zakres: <code>drive</code> — odczyt i zapis plików na Twoim Google Drive.</span>
         </div>
       </div>
     </div>

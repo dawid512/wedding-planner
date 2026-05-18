@@ -315,6 +315,7 @@ Wniosek:
 60. **Fix: 404 stale file ID** — `bootstrapOwnPlan` catch: czyści oba klucze LS (`wp_g_file_id` + `wp_g_folder_id`) i robi pełny re-bootstrap (findOrCreateFolder → findFile → createJsonFile → readJsonFile).
 61. **Fix: Picker 401** — dodano `_tokenAge` ref (timestamp ustawienia tokenu); `PickerScreen.openPicker` sprawdza wiek tokenu (>55 min = zrozumiały błąd zamiast cichego 401 z Pickera).
 62. `npm run typecheck` przechodzi bez błędów po wszystkich fix-ach.
+63. **Zmieniono scope OAuth z `drive.file` na `drive`** — kluczowa poprawka invite flow. `drive.file` scope nie pozwala na odczyt plików udostępnionych przez Drive API (zwraca 404) i blokuje Picker (zwraca 401 bo nie może listować "Shared with me"). Scope `drive` daje pełny read/write do Drive użytkownika, co jest standardem dla aplikacji kolaboracyjnych.
 
 ## 9. Do zrobienia teraz
 
@@ -377,6 +378,15 @@ Wniosek:
 9. `InviteModal` uproszczony — info o pliku Drive i folderze. Zapraszanie oznaczone jako "coming soon".
 10. `UserMenu` zaktualizowany — wyświetla awatar Google (zdjęcie profilowe lub inicjały), email, logout.
 11. `npm run typecheck` przechodzi bez błędów.
+
+### 2026-05-18 (fix invite flow: zmiana scope OAuth drive.file → drive)
+
+1. **Root cause invite flow**: `drive.file` scope widzi TYLKO pliki stworzone przez aplikację lub otwarte przez Picker. Plik udostępniony przez Drive API (email) jest w Drive gościa, ale `drive.file` zwraca 404. Picker z `drive.file` nie może listować "Shared with me" → zwraca 401.
+2. **Fix**: zmiana `DRIVE_SCOPES` na `"https://www.googleapis.com/auth/drive openid email profile"`. Scope `drive` daje full read/write do wszystkich plików Drive, do których użytkownik ma dostęp.
+3. **Nowy join flow** (po zmianie scope): `readJsonFile(token, joinFileId)` → SUKCES bezpośrednio (bez Pickera). PickerScreen pozostaje jako fallback na edge case'y.
+4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
+5. `npm run typecheck` przechodzi bez błędów.
+6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
 
 ### 2026-05-18 (bugfixes: "Brak planu" flash + 404 stale ID + Picker 401)
 

@@ -84,6 +84,7 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 47. Naprawiono "Brak planu" flash — `setSession` wywoływane atomicznie razem z `setAllWs` na końcu `bootstrapDrive`.
 48. Naprawiono 404 stale file ID — `bootstrapOwnPlan` przy błędzie czyści oba klucze LS i robi pełny re-bootstrap.
 49. Naprawiono Picker 401 — `_tokenAge` ref; `openPicker` sprawdza wiek tokenu przed otwarciem.
+50. **Zmieniono scope OAuth z `drive.file` na `drive`** — `drive.file` zwracał 404 na plikach udostępnionych przez Drive API i blokował Picker (401). Scope `drive` daje pełny dostęp do plików Drive użytkownika, co jest wymagane dla współedycji.
 
 ## Do zrobienia teraz
 
@@ -128,5 +129,5 @@ Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 1. Token GIS wygasa po 1 godz. — po wygaśnięciu Picker pokazuje błąd z instrukcją ponownego logowania (brak auto-refresh).
 2. Wszystkie dane w jednym pliku `wedding-data.json` (brak podziału domenowego).
 3. Brak soft locks i sync engine.
-4. Przy pierwszym zaproszeniu: właściciel musi wysłać **email przez Drive** (opcja w panelu "Zaproś") — sam link bez emaila nie wystarczy, bo plik nie trafi do Drive gościa.
+4. Przy pierwszym zaproszeniu: właściciel musi wysłać **email przez Drive** (opcja w panelu "Zaproś") — sam link bez emaila nie wystarczy, bo plik nie trafi do Drive gościa. Po emailu wystarczy link `?join=FILEID`.
 5. Role gościa w localStorage mogą być nieaktualne jeśli właściciel zmieni je po dołączeniu — aktualizowane przy ponownym logowaniu.
