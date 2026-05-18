@@ -309,6 +309,20 @@ function useAuth(): AuthState {
       await Promise.all(storedGuests.map(async (gp) => {
         try {
           const data = await readJsonFile<AppData>(token, gp.fileId);
+
+          // Re-check current Drive role on every login — owner may have changed it
+          let freshRole: "Edytor" | "Podgląd" = gp.role;
+          try {
+            const perms  = await listPermissions(token, gp.fileId);
+            const myPerm = perms.find(p => p.emailAddress === info.email);
+            if (myPerm) freshRole = myPerm.role === "reader" ? "Podgląd" : "Edytor";
+          } catch { /* keep cached role if permissions call fails */ }
+
+          // Persist updated role to localStorage if it changed
+          if (freshRole !== gp.role) {
+            upsertGuestPlan({ ...gp, role: freshRole });
+          }
+
           loadedGuests.push({
             id:            gp.fileId,
             fileId:        gp.fileId,
@@ -317,7 +331,7 @@ function useAuth(): AuthState {
             data:          { ...EMPTY_DATA, ...data },
             collaborators: [],
             createdAt:     Date.now(),
-            myRole:        gp.role,
+            myRole:        freshRole,
           });
         } catch {
           failedIds.push(gp.fileId);
@@ -336,10 +350,18 @@ function useAuth(): AuthState {
         : false;
 
       if (joinFileId && !alreadyLoaded) {
-        // Try direct access — works if drive.file scope already covers this file
-        // (i.e. user previously opened it via Picker in a prior session).
+        // Try direct access — works with drive scope (shared files are accessible).
         try {
           const data = await readJsonFile<AppData>(token, joinFileId);
+
+          // Determine actual role from Drive permissions (never assume "Edytor")
+          let joinRole: "Edytor" | "Podgląd" = "Podgląd";
+          try {
+            const perms  = await listPermissions(token, joinFileId);
+            const myPerm = perms.find(p => p.emailAddress === info.email);
+            if (myPerm) joinRole = myPerm.role === "reader" ? "Podgląd" : "Edytor";
+          } catch { /* keep default */ }
+
           const newWs: Workspace = {
             id:            joinFileId,
             fileId:        joinFileId,
@@ -348,10 +370,10 @@ function useAuth(): AuthState {
             data:          { ...EMPTY_DATA, ...data },
             collaborators: [],
             createdAt:     Date.now(),
-            myRole:        "Edytor",
+            myRole:        joinRole,
           };
           loadedGuests.push(newWs);
-          upsertGuestPlan({ fileId: joinFileId, name: newWs.name, role: "Edytor" });
+          upsertGuestPlan({ fileId: joinFileId, name: newWs.name, role: joinRole });
           localStorage.removeItem(LS.joinFileId);
         } catch {
           // No direct access — must use Picker (first-time join).

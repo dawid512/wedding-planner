@@ -85,6 +85,7 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 48. Naprawiono 404 stale file ID — `bootstrapOwnPlan` przy błędzie czyści oba klucze LS i robi pełny re-bootstrap.
 49. Naprawiono Picker 401 — `_tokenAge` ref; `openPicker` sprawdza wiek tokenu przed otwarciem.
 50. **Zmieniono scope OAuth z `drive.file` na `drive`** — `drive.file` zwracał 404 na plikach udostępnionych przez Drive API i blokował Picker (401). Scope `drive` daje pełny dostęp do plików Drive użytkownika, co jest wymagane dla współedycji.
+51. **Naprawiono odświeżanie roli gościa** — przy każdym logowaniu `listPermissions` sprawdza aktualną rolę z Drive i aktualizuje localStorage. Zmiana Edytor→Podgląd przez właściciela jest widoczna po przelogowaniu gościa.
 
 ## Do zrobienia teraz
 

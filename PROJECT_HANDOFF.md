@@ -379,6 +379,14 @@ Wniosek:
 10. `UserMenu` zaktualizowany — wyświetla awatar Google (zdjęcie profilowe lub inicjały), email, logout.
 11. `npm run typecheck` przechodzi bez błędów.
 
+### 2026-05-18 (fix: odświeżanie roli gościa przy logowaniu)
+
+1. **Problem**: rola gościa (`myRole`) była cache'owana w `wp_g_guest_plans` localStorage przy pierwszym dołączeniu i nigdy nie była odświeżana. Właściciel mógł zmienić Edytor→Podgląd przez Drive API, ale gość po przelogowaniu nadal miał starą rolę z cache.
+2. **Fix w `bootstrapDrive`** — przy ładowaniu każdego planu gościa z localStorage teraz wywoływane jest `listPermissions(token, gp.fileId)`, szukana jest permisja dla `info.email`, i jeśli rola się zmieniła — `upsertGuestPlan` aktualizuje localStorage.
+3. **Fix w join path** — przy dołączaniu przez `?join=FILEID` rola była hardcoded na `"Edytor"`. Teraz też sprawdza `listPermissions` i ustawia `"Podgląd"` gdy Drive role = `"reader"`.
+4. Oba miejsca są odporne na błąd `listPermissions` (try/catch, fallback do cached/default).
+5. `npm run typecheck` przechodzi bez błędów.
+
 ### 2026-05-18 (fix invite flow: zmiana scope OAuth drive.file → drive)
 
 1. **Root cause invite flow**: `drive.file` scope widzi TYLKO pliki stworzone przez aplikację lub otwarte przez Picker. Plik udostępniony przez Drive API (email) jest w Drive gościa, ale `drive.file` zwraca 404. Picker z `drive.file` nie może listować "Shared with me" → zwraca 401.
