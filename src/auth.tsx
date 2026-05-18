@@ -138,6 +138,7 @@ const LS = {
   wsName:     "wp_g_ws_name",       // own plan name
   joinFileId: "wp_g_join_file_id",  // pending join param
   guestPlans: "wp_g_guest_plans",   // JSON: GuestPlanInfo[]
+  activeWsId: "wp_g_active_ws_id",  // last active workspace ID (persisted)
 };
 
 const DATA_FILE              = "wedding-data.json";
@@ -227,6 +228,7 @@ function useAuth(): AuthState {
     localStorage.removeItem(LS.folderId);
     localStorage.removeItem(LS.wsName);
     localStorage.removeItem(LS.joinFileId);
+    localStorage.removeItem(LS.activeWsId);
     if (fullClear) localStorage.removeItem(LS.guestPlans);
   }, []);
 
@@ -429,9 +431,17 @@ function useAuth(): AuthState {
       const joinWs = joinFileId
         ? loadedGuests.find(w => w.fileId === joinFileId)
         : null;
+
+      // Restore the last active workspace (persisted across refreshes).
+      // Priority: explicit ?join= link > saved preference > own plan.
+      const savedActiveId = localStorage.getItem(LS.activeWsId);
+      const restoredWs = joinWs ??
+        (savedActiveId ? allWorkspaces.find(w => w.id === savedActiveId) : null) ??
+        ownWs;
+
       setSession(info.email);
       setAllWs(allWorkspaces);
-      setActiveWsId((joinWs ?? ownWs).id);
+      setActiveWsId(restoredWs.id);
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -584,6 +594,7 @@ function useAuth(): AuthState {
     setActiveWsId(wsId);
     setNeedsPicker(false);
     localStorage.removeItem(LS.joinFileId);
+    localStorage.setItem(LS.activeWsId, wsId); // persist choice across refreshes
 
     // Async role refresh — capabilities API is authoritative (works for all roles)
     const t = _tokenRef.current;
@@ -799,9 +810,12 @@ interface InviteModalProps {
   onClose: () => void;
 }
 
-function InviteModal({ auth, onClose }: InviteModalProps) {
+const InviteModal = React.memo(function InviteModal({ auth, onClose }: InviteModalProps) {
   const ws      = auth.activeWorkspace as Workspace | null;
   const isOwner = !auth.isGuest;
+
+  // Capture fileId once at mount — prevents effect from re-firing on unrelated auth changes
+  const fileId = auth.fileId;
 
   const [email,        setEmail]        = useState("");
   const [role,         setRole]         = useState<"writer" | "reader">("writer");
@@ -813,37 +827,40 @@ function InviteModal({ auth, onClose }: InviteModalProps) {
   const [updatingPerm, setUpdatingPerm] = useState<string | null>(null);
   const [copied,       setCopied]       = useState(false);
 
-  const inviteLink = auth.fileId
-    ? `${window.location.origin}${window.location.pathname}?join=${auth.fileId}`
+  const inviteLink = fileId
+    ? `${window.location.origin}${window.location.pathname}?join=${fileId}`
     : null;
 
-  // Load collaborator list on mount
+  // Load collaborator list on mount — only depends on stable values
   useEffect(() => {
-    if (!isOwner || !auth.fileId || !_tokenRef.current) return;
+    if (!isOwner || !fileId || !_tokenRef.current) return;
+    let cancelled = false;
     setLoadingPerms(true);
-    listPermissions(_tokenRef.current, auth.fileId)
-      .then(perms => setPermissions(perms.filter(p => p.role !== "owner")))
-      .catch(() => setPermissions([]))
-      .finally(() => setLoadingPerms(false));
-  }, [isOwner, auth.fileId]);
+    listPermissions(_tokenRef.current, fileId)
+      .then(perms => { if (!cancelled) setPermissions(perms.filter(p => p.role !== "owner")); })
+      .catch(() => { if (!cancelled) setPermissions([]); })
+      .finally(() => { if (!cancelled) setLoadingPerms(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount — fileId is stable for the lifetime of this modal
 
   // Invite via Drive API — PRIMARY action
-  const handleInvite = async (e: React.FormEvent) => {
+  const handleInvite = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth.fileId || !_tokenRef.current) {
+    if (!fileId || !_tokenRef.current) {
       setSendError("Brak tokenu — odśwież stronę.");
       return;
     }
     setSending(true); setSendError(""); setSendSuccess("");
     try {
-      await shareFile(_tokenRef.current, auth.fileId, email.trim(), role);
+      await shareFile(_tokenRef.current, fileId, email.trim(), role);
       setSendSuccess(
         `Zaproszono ${email.trim()} — dostali email od Google z dostępem do pliku.` +
         ` Teraz wyślij im też link zaproszenia poniżej.`,
       );
       setEmail("");
       // Refresh permissions list
-      listPermissions(_tokenRef.current, auth.fileId)
+      listPermissions(_tokenRef.current, fileId)
         .then(perms => setPermissions(perms.filter(p => p.role !== "owner")))
         .catch(() => {});
     } catch {
@@ -851,14 +868,14 @@ function InviteModal({ auth, onClose }: InviteModalProps) {
     } finally {
       setSending(false);
     }
-  };
+  }, [email, role, fileId]);
 
   // Change role for existing collaborator
-  const handleRoleChange = async (permId: string, newRole: "writer" | "reader") => {
-    if (!auth.fileId || !_tokenRef.current) return;
+  const handleRoleChange = useCallback(async (permId: string, newRole: "writer" | "reader") => {
+    if (!fileId || !_tokenRef.current) return;
     setUpdatingPerm(permId);
     try {
-      await updatePermission(_tokenRef.current, auth.fileId, permId, newRole);
+      await updatePermission(_tokenRef.current, fileId, permId, newRole);
       setPermissions(prev =>
         prev?.map(p => p.id === permId ? { ...p, role: newRole } : p) ?? prev,
       );
@@ -867,21 +884,21 @@ function InviteModal({ auth, onClose }: InviteModalProps) {
     } finally {
       setUpdatingPerm(null);
     }
-  };
+  }, [fileId]);
 
   // Remove collaborator
-  const handleRemove = async (permId: string) => {
-    if (!auth.fileId || !_tokenRef.current) return;
-    await removePermission(_tokenRef.current, auth.fileId, permId).catch(console.error);
+  const handleRemove = useCallback(async (permId: string) => {
+    if (!fileId || !_tokenRef.current) return;
+    await removePermission(_tokenRef.current, fileId, permId).catch(console.error);
     setPermissions(prev => prev ? prev.filter(p => p.id !== permId) : prev);
-  };
+  }, [fileId]);
 
-  const copyLink = () => {
+  const copyLink = useCallback(() => {
     if (!inviteLink) return;
     navigator.clipboard.writeText(inviteLink).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2500);
     });
-  };
+  }, [inviteLink]);
 
   if (!ws) return null;
 
@@ -1062,7 +1079,7 @@ function InviteModal({ auth, onClose }: InviteModalProps) {
       </div>
     </div>
   );
-}
+});
 
 // ============================================================
 // AVATAR HELPER

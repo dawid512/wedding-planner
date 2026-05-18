@@ -95,6 +95,7 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
   const [route, setRoute] = useS<string>(() => localStorage.getItem(ROUTE_KEY) || "dashboard");
   const [sidebarOpen, setSidebarOpen] = useS(false);
   const [inviteOpen, setInviteOpen] = useS(false);
+  const closeInvite = useC(() => setInviteOpen(false), []);
 
   useE(() => {
     localStorage.setItem(ROUTE_KEY, route);
@@ -308,7 +309,7 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
         <PageComp data={data} set={set} editing={editing} />
       </main>
 
-      {inviteOpen && <InviteModal auth={auth} onClose={() => setInviteOpen(false)} />}
+      {inviteOpen && <InviteModal auth={auth} onClose={closeInvite} />}
 
       <TweaksPanel title="Tweaks">
         <TweakSection label="Wygląd">

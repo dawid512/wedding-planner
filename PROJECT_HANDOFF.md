@@ -320,6 +320,9 @@ Wniosek:
 65. **Auto-discovery shared plans** — po zalogowaniu `listSharedFiles` (sharedWithMe=true) wykrywa udostępnione plany Drive bez potrzeby linka `?join=FILEID`. Gość widzi plan właściciela po zwykłym logowaniu.
 66. **Fix: updateActiveData 403** — zamieniono `listPermissions`/`perms.find` na `getFileCapabilities` w obsłudze 403 przy zapisie. `capabilities.canEdit` jest autorytatywnym sprawdzeniem roli.
 67. **Przycisk "Zaproś" tylko dla właściciela** — zarówno w topbar jak i mobile topbar, przycisk Zaproś jest widoczny tylko gdy `auth.myRole === "Właściciel"`. Gość i Edytor nie widzą opcji zapraszania.
+68. **Fix: auto-discovery shared plans** — query w `listSharedFiles` zmieniono z `name='...' and sharedWithMe=true and trashed=false` na `name='...' and trashed=false`. Pliki udostępnione przez Drive API permissions endpoint nie zawsze pojawiają się w kolekcji "Shared with me" w Drive (są dostępne, ale nie zawsze indeksowane tam). Caller filtruje własny plik przez `alreadyKnown` check.
+69. **Fix: aktywny workspace persystuje przez refresh** — `switchWorkspace` zapisuje wybrany wsId do `localStorage` pod kluczem `wp_g_active_ws_id`. `bootstrapDrive` przywraca go przy logowaniu/silent restore (priorytet: `?join=` > saved > ownWs). `clearSession` czyści klucz przy wylogowaniu.
+70. **Fix: InviteModal lag** — owinięto w `React.memo` (re-render tylko gdy `auth` lub `onClose` zmienią referencję). Wszystkie handlery (`handleInvite`, `handleRoleChange`, `handleRemove`, `copyLink`) owinięto w `useCallback`. `useEffect` dla permisji uruchamia się raz przy montowaniu (`[]` deps + cleanup flaga `cancelled`), nie re-triggeruje przy każdym re-renderze parenta. `onClose` w `app.tsx` stabilizowany przez `useCallback`.
 
 ## 9. Do zrobienia teraz
 
@@ -381,6 +384,13 @@ Wniosek:
 9. `InviteModal` uproszczony — info o pliku Drive i folderze. Zapraszanie oznaczone jako "coming soon".
 10. `UserMenu` zaktualizowany — wyświetla awatar Google (zdjęcie profilowe lub inicjały), email, logout.
 11. `npm run typecheck` przechodzi bez błędów.
+
+### 2026-05-18 (fix: auto-discovery + active ws persistence + InviteModal lag)
+
+1. **Fix: listSharedFiles query** — zmieniono z `sharedWithMe=true and trashed=false` na samo `trashed=false`. Pliki udostępnione przez Drive API nie zawsze pojawiają się w "Shared with me". Caller już filtruje własny plik przez `alreadyKnown` check.
+2. **Fix: aktywny workspace po refresh** — `switchWorkspace` zapisuje `wp_g_active_ws_id` do localStorage. `bootstrapDrive` przywraca go po silent restore/logowaniu (priorytet: `?join=` > saved > ownWs). `clearSession` usuwa klucz przy logout.
+3. **Fix: InviteModal lag** — `React.memo` + `useCallback` na wszystkich handlerach + `useEffect` na `[]` deps (jeden run przy mount, cleanup `cancelled` flag). Stable `onClose` przez `useCallback` w `app.tsx`.
+4. `npm run typecheck` przechodzi bez błędów.
 
 ### 2026-05-18 (fix: getFileCapabilities + auto-discovery + owner-only invite)
 

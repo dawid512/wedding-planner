@@ -91,6 +91,9 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 54. **Auto-discovery shared plans** — po zalogowaniu `listSharedFiles` (sharedWithMe=true) wykrywa udostępnione plany Drive bez potrzeby linka `?join=FILEID`. Gość widzi plan właściciela po zwykłym logowaniu bez dodatkowego linku.
 55. **Fix: updateActiveData 403** — zamieniono `listPermissions`/`perms.find` na `getFileCapabilities` — autorytatywne sprawdzenie roli.
 56. **Przycisk "Zaproś" tylko dla właściciela** — gość i edytor nie widzą opcji zapraszania.
+57. **Fix: auto-discovery shared plans** — zmieniono query w `listSharedFiles` z `sharedWithMe=true` na szerokie `name='wedding-data.json' and trashed=false`. Pliki udostępnione przez Drive API permissions nie zawsze pojawiają się w "Shared with me".
+58. **Fix: aktywny workspace persystuje przez refresh** — `switchWorkspace` zapisuje ID do `localStorage (wp_g_active_ws_id)`. Przy każdym logowaniu/odświeżeniu `bootstrapDrive` przywraca ostatni wybrany workspace zamiast zawsze aktywować własny plan.
+59. **Fix: InviteModal lag** — owinięto w `React.memo`, useCallback na wszystkich handlerach, `useEffect` dla permisji działa raz przy montowaniu (nie re-triggeruje przy re-renderach parenta), dodano cleanup flagi `cancelled` dla pending async calls.
 
 ## Do zrobienia teraz
 

@@ -208,15 +208,20 @@ export async function getFileCapabilities(
 }
 
 /**
- * List Drive files shared with the current user (sharedWithMe=true) by name.
+ * List all Drive files with this name that the user can access.
  * Used for auto-discovery: guest sees shared wedding plan on login without
  * needing a ?join= link.
+ *
+ * NOTE: sharedWithMe=true was removed — files shared via the Drive API
+ * permissions endpoint don't always appear in the "Shared with me"
+ * collection. We query ALL accessible files with this name; the caller
+ * filters out the user's own file (by comparing against ownWs.fileId).
  */
 export async function listSharedFiles(
   token: string,
   fileName: string,
 ): Promise<Array<{ id: string; name: string }>> {
-  const q = `name='${fileName}' and sharedWithMe=true and trashed=false`;
+  const q = `name='${fileName}' and trashed=false`;
   const r = await fetch(
     `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name)&spaces=drive`,
     { headers: { Authorization: `Bearer ${token}` } },
