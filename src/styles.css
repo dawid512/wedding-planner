@@ -1438,3 +1438,142 @@ select.field__input {
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
+
+/* ============================================================
+   MOBILE / RESPONSIVE — TODO #2 (2026-05-19)
+   ============================================================ */
+
+/* 1. Prevent whole-page horizontal scroll */
+html { overflow-x: hidden; }
+body { overflow-x: hidden; max-width: 100vw; }
+.main { overflow-x: hidden; min-width: 0; }
+
+/* 2. Cards containing tables scroll horizontally — prevent layout breakage */
+.card:has(.tbl) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 3. Missing utility */
+.mb-24 { margin-bottom: 24px; }
+
+/* ── 900px — tablet ─────────────────────────────────────── */
+@media (max-width: 900px) {
+
+  /* Touch targets ≥ 44px */
+  .btn                            { min-height: 44px; padding: 10px 16px; }
+  .btn--small                     { min-height: 36px; padding: 8px 12px; font-size: 12px; }
+  .btn--icon                      { width: 44px; height: 44px; min-height: 44px; padding: 0; }
+  .nav__item                      { min-height: 44px; }
+  .check                          { width: 22px; height: 22px; }
+
+  /* Editing inputs — bigger hit area */
+  .is-editing .field__input,
+  input[type="date"].field__input,
+  input[type="time"].field__input,
+  input[type="datetime-local"].field__input,
+  select.field__input             { min-height: 44px; padding: 10px 12px; }
+
+  /* Topbar — tighter */
+  .topbar { padding: 12px 16px; gap: 10px; }
+
+  /* Page — smaller horizontal padding already set in existing rule */
+}
+
+/* ── 640px — small phone ────────────────────────────────── */
+@media (max-width: 640px) {
+
+  /* Page padding */
+  .page { padding: 20px 14px 100px; }
+
+  /* Page header: stack title and stats, reduce font sizes */
+  .page__title  { font-size: clamp(28px, 9vw, 44px); }
+  .page__sub    { font-size: 13px; margin-top: 8px; }
+  .stat__num    { font-size: 24px; }
+  .stat__label  { font-size: 9px; }
+  .page__stats  { gap: 14px; }
+
+  /* KPI grid — 2 cols on phone (instead of 4) */
+  .grid--4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .kpi__num { font-size: 28px; }
+
+  /* Hero section — compact on phone */
+  .hero               { padding: 28px 14px 24px; margin-bottom: 28px; }
+  .hero__names        { font-size: clamp(34px, 11vw, 64px); }
+  .hero__meta > div   { padding: 0 14px; }
+  .hero__meta-val     { font-size: 17px; }
+  .countdown__num     { font-size: 34px; }
+  .countdown__cell    { padding: 0 10px; }
+
+  /* Section spacing */
+  .section { margin-bottom: 32px; }
+  .card    { padding: 16px; }
+
+  /* Task rows — wrap priority/category/date below title */
+  .task {
+    grid-template-columns: 22px 1fr auto !important;
+    grid-template-rows: auto auto;
+    row-gap: 2px;
+    column-gap: 10px;
+  }
+  .task__title  { font-size: 14px; }
+  .task__due    { grid-column: 2; grid-row: 2; font-size: 10px; }
+
+  /* Tables — ensure min-width so cells are readable while scrolling */
+  .tbl          { min-width: 460px; }
+  .outfit-tbl   { min-width: 580px; }
+
+  /* Table cells — slightly tighter */
+  .tbl th, .tbl td { padding: 10px 10px; }
+
+  /* Timeline rows — single column */
+  .tl-row { grid-template-columns: 64px 1fr auto; gap: 12px; }
+  .tl-time { font-size: 12px; }
+  .tl-title { font-size: 18px; }
+
+  /* Tables grid (plan stołów) */
+  .tables-grid { grid-template-columns: 1fr; }
+
+  /* Countdown — wrap on very small */
+  .countdown { flex-wrap: wrap; gap: 8px; }
+  .countdown__cell { border-right: none; }
+
+  /* Topbar breadcrumbs — shorter */
+  .topbar__crumbs { font-size: 10px; letter-spacing: 0.08em; }
+  .topbar { padding: 10px 14px; }
+
+  /* UserMenu popup — don't clip off right edge */
+  .user-menu__pop { right: -8px; width: min(280px, calc(100vw - 24px)); }
+
+  /* Mood grid — single col on tiny phone */
+  .mood { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}
+
+/* ── 480px — very small phone ───────────────────────────── */
+@media (max-width: 480px) {
+
+  .page { padding: 16px 12px 80px; }
+
+  /* Modal — bottom sheet */
+  .modal-scrim {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal {
+    border-radius: 14px 14px 0 0;
+    max-height: 90vh;
+    padding: 20px 16px 36px;
+    animation: modal-sheet-in .22s ease-out;
+  }
+  @keyframes modal-sheet-in {
+    from { transform: translateY(100%); opacity: 0.8; }
+    to   { transform: translateY(0);   opacity: 1;   }
+  }
+  .modal__title { font-size: 24px; }
+
+  /* Hide page sub-description on tiny screens */
+  .page__sub { display: none; }
+
+  /* Brand in sidebar — smaller */
+  .brand__names { font-size: 22px; }
+}

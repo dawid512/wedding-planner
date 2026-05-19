@@ -332,6 +332,7 @@ Wniosek:
 ### Priorytety od właściciela (lista od 2026-05-19)
 
 1. ~~**Refaktoryzacja i nawigacja po kodzie**~~ ✅ ZROBIONE (2026-05-19) — `src/pages/` (16 komponentów stron + `_shared.tsx` + `index.ts`), `CODEBASE.md`, `app.tsx` importuje z `./pages`, typecheck 0 błędów. `pages-1/2/3.tsx` — deprecated, usunąć ręcznie.
+2. ~~**UI / mobile**~~ ✅ ZROBIONE (2026-05-19) — tabele scrollują poziomo w kartach (nie wylewają poza stronę), `overflow-x: hidden` na `html/body/main`, touch-targety ≥ 44px, task-lista wrappuje ≤640px, KPI 2-kolumny na telefonie, hero kompaktowy, modal bottom-sheet ≤480px, `.mb-24` utility.
 2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze). Sprawdzić breakpointy, inputy, modalne na małych ekranach.
 3. **Pola daty na telefonie** — na mobilnym nie da się wyczyścić zawartości pola `<input type="date">`; dodać przycisk `×` w trybie edycji obok każdego pola daty (widoczny tylko gdy pole ma wartość i `editing === true`).
 4. **Fix blokady edycji (KRYTYCZNY)** — nadal 2 użytkowników może edytować naraz. Obecna implementacja write-then-verify (350 ms delay) nie działa w praktyce. Wymaga innego podejścia — np. oddzielny plik `wedding-lock.json` lub polling przed edycją.
