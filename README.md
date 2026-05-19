@@ -101,12 +101,13 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 64. **Email właściciela jako nazwa planu** — `getFileMeta` pobiera `owners[0].emailAddress` razem z `capabilities.canEdit` w jednym żądaniu Drive API. Udostępnione plany pokazują email właściciela zamiast "Wspólny plan ślubny".
 65. **Soft edit lock** — blokada edycji zapisywana w `_editLock: { email, lockedAt }` w `wedding-data.json`. Przed wejściem w tryb edycji `acquireLock` odczytuje świeże dane z Drive i sprawdza aktywną blokadę. Przy próbie edycji gdy ktoś inny edytuje — pokazuje komunikat kto aktualnie edytuje. Po zapisie lub anulowaniu blokada jest usuwana z Drive. Timer bezczynności: ostrzeżenie po 8 min, wyrzucenie bez zapisu po 10 min. Ostrzeżenie ma opcje: Zapisz / Zostań w edycji (reset timera) / Anuluj bez zapisu.
 66. **Fix edit lock — write-then-verify** — `acquireLock` używa strategii: read → check → write → czekaj 350 ms → re-read → verify. Jeśli po zapisie locka czyjaś blokada zastąpiła naszą (race condition), wykrywamy to i wycofujemy się. Podejście If-Match/ETag zostało porzucone bo Drive nie obsługuje go na endpoincie media upload.
+67. **Refaktoryzacja plików stron (TODO #1)** — podzielono `pages-1.tsx` / `pages-2.tsx` / `pages-3.tsx` na osobne pliki w `src/pages/` (16 plików + `_shared.tsx` + `index.ts`). `app.tsx` importuje wyłącznie z `./pages`. Usunięto duplikaty importów. Dodano `CODEBASE.md` jako mapę kodu dla agenta AI. `npm run typecheck` — 0 błędów.
 
 ## Do zrobienia teraz
 
 ### Priorytety od właściciela (kolejność dowolna)
 
-1. **Refaktoryzacja i nawigacja po kodzie** — podział plików stron, porządek w kodzie, instrukcja `.md` dla agenta AI ułatwiająca poruszanie się po plikach i zmniejszająca zużycie tokenów.
+1. ~~**Refaktoryzacja i nawigacja po kodzie**~~ ✅ ZROBIONE — `src/pages/` (16 plików), `CODEBASE.md`, typecheck czysty.
 2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze).
 3. **Pola daty na telefonie** — nie da się wyczyścić zawartości; dodać przycisk `×` w trybie edycji czyszczący pole daty.
 4. **Fix blokady edycji** — nadal 2 użytkowników może edytować naraz; obecna implementacja write-then-verify nie działa w praktyce.

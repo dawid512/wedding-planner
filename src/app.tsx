@@ -3,9 +3,12 @@
 import React, { useState as useS, useEffect as useE, useMemo as useM, useCallback as useC, useRef } from "react";
 import { EMPTY_DATA, PAGES, Icon } from "./core";
 import type { AppData, DataUpdater } from "./core";
-import { PageDashboard, PageTasks, PageBudget, PageGuests } from "./pages-1";
-import { PageTables, PageVendors, PageSchedule, PageMenu, PageOutfits, PageInspiration, PageGifts, PageHoneymoon } from "./pages-2";
-import { PageEvents, PageMusic, PageDocuments, PagePayments } from "./pages-3";
+import {
+  PageDashboard, PageTasks, PageBudget, PageGuests,
+  PageTables, PageVendors, PageSchedule, PageMenu,
+  PageOutfits, PageInspiration, PageGifts, PageHoneymoon,
+  PageEvents, PageMusic, PageDocuments, PagePayments,
+} from "./pages";
 import { useAuth, AuthScreen, PickerScreen, InviteModal, UserMenu, authInitials, avatarColor } from "./auth";
 import type { Workspace } from "./auth";
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio } from "./tweaks-panel";

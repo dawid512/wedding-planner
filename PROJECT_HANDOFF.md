@@ -208,12 +208,12 @@ Wniosek:
    Google OAuth 2.0 (GIS Token Client) — logowanie Google, zapis/odczyt z Drive
 10. `src/core.tsx`
     dane startowe, helpery, komponenty bazowe, typy domenowe (zmigrowany do TS)
-11. `src/pages-1.tsx`
-    dashboard, tasks, budget, guests (zmigrowany do TS)
-12. `src/pages-2.tsx`
-    tables, vendors, schedule, menu, outfits, inspiration, gifts, honeymoon (zmigrowany do TS)
-13. `src/pages-3.tsx`
-    events, music, documents, payments (zmigrowany do TS)
+11. `src/pages/` — **aktualny katalog stron** (od 2026-05-19):
+    - `_shared.tsx` — PageHeader
+    - `index.ts` — barrel re-export
+    - `dashboard.tsx`, `tasks.tsx`, `budget.tsx`, `guests.tsx`, `tables.tsx`, `vendors.tsx`, `schedule.tsx`, `menu.tsx`, `outfits.tsx`, `inspiration.tsx`, `gifts.tsx`, `honeymoon.tsx`, `events.tsx`, `music.tsx`, `documents.tsx`, `payments.tsx`
+    - `pages-1.tsx` / `pages-2.tsx` / `pages-3.tsx` — DEPRECATED, nie importowane, do ręcznego usunięcia
+12. `CODEBASE.md` — mapa kodu dla agenta AI (struktura plików, typy, flow zapisu, jak dodać stronę)
 14. `src/tweaks-panel.tsx`
     panel tweakow (zmigrowany do TS)
 15. `src/styles.css`
@@ -331,7 +331,7 @@ Wniosek:
 
 ### Priorytety od właściciela (lista od 2026-05-19)
 
-1. **Refaktoryzacja i nawigacja po kodzie** — podział plików stron, porządek w kodzie, instrukcja `.md` dla agenta AI ułatwiająca poruszanie się po plikach i zmniejszająca zużycie tokenów. Pliki do rozważenia: `pages-1.tsx`, `pages-2.tsx`, `pages-3.tsx` — każdy to kilkaset linii; warto podzielić na 1 plik per strona.
+1. ~~**Refaktoryzacja i nawigacja po kodzie**~~ ✅ ZROBIONE (2026-05-19) — `src/pages/` (16 komponentów stron + `_shared.tsx` + `index.ts`), `CODEBASE.md`, `app.tsx` importuje z `./pages`, typecheck 0 błędów. `pages-1/2/3.tsx` — deprecated, usunąć ręcznie.
 2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze). Sprawdzić breakpointy, inputy, modalne na małych ekranach.
 3. **Pola daty na telefonie** — na mobilnym nie da się wyczyścić zawartości pola `<input type="date">`; dodać przycisk `×` w trybie edycji obok każdego pola daty (widoczny tylko gdy pole ma wartość i `editing === true`).
 4. **Fix blokady edycji (KRYTYCZNY)** — nadal 2 użytkowników może edytować naraz. Obecna implementacja write-then-verify (350 ms delay) nie działa w praktyce. Wymaga innego podejścia — np. oddzielny plik `wedding-lock.json` lub polling przed edycją.
@@ -356,7 +356,7 @@ Wniosek:
 1. Przeniesc pozostale moduly (events, music, documents, payments, outfits itd.) na warstwe Google Drive.
 2. Dodac upload zalacznikow do `attachments/` w Drive.
 3. Dodac lepsza obsluge konfliktow (block-write-on-conflict) i komunikaty UX.
-4. Rozwazyc porzadniejszy podzial duzych plikow `pages-2.tsx` i `pages-3.tsx`.
+4. ~~Rozwazyc porzadniejszy podzial duzych plikow `pages-2.tsx` i `pages-3.tsx`.~~ — ZROBIONE.
 5. Dodac ESLint i Prettier po ustabilizowaniu integracji Google.
 
 ## 11. Czego nie robic
