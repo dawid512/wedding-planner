@@ -2,7 +2,7 @@
 import React from "react";
 import { Field, Icon, fmtCurrency, fmtDate } from "../core";
 import type { AppData, PageProps } from "../core";
-import { PageHeader, DateInput } from "./_shared";
+import { PageHeader } from "./_shared";
 
 export function PagePayments({ data, set, editing }: PageProps) {
   const payments = data.payments || [];
@@ -69,7 +69,7 @@ export function PagePayments({ data, set, editing }: PageProps) {
                   </td>
                   <td>
                     {editing ? (
-                      <DateInput value={p.dueDate || ""} onChange={(v) => update(p.id, { dueDate: v })} />
+                      <input type="date" className="field__input" value={p.dueDate || ""} onChange={(e) => update(p.id, { dueDate: e.target.value })} />
                     ) : (
                       <span style={{ color: isOverdue ? "oklch(0.55 0.15 28)" : isSoon ? "var(--accent)" : undefined }}>
                         {p.dueDate ? fmtDate(p.dueDate) : "—"}

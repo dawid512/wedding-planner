@@ -2,7 +2,7 @@
 import React from "react";
 import { Field, Icon } from "../core";
 import type { AppData, PageProps } from "../core";
-import { PageHeader, DateInput } from "./_shared";
+import { PageHeader } from "./_shared";
 
 export function PageEvents({ data, set, editing }: PageProps) {
   const events = data.events || [];
@@ -53,7 +53,12 @@ export function PageEvents({ data, set, editing }: PageProps) {
             <div className="row" style={{ gridTemplateColumns: "100px 1fr", padding: "8px 0" }}>
               <div className="row__label" style={{ padding: 0 }}>Data / godz.</div>
               {editing ? (
-                <DateInput type="datetime-local" value={e.date || ""} onChange={(v) => update(e.id, { date: v })} />
+                <input
+                  type="datetime-local"
+                  value={e.date || ""}
+                  onChange={(ev) => update(e.id, { date: ev.target.value })}
+                  className="field__input"
+                />
               ) : (
                 <span className="serif-italic" style={{ fontSize: 16 }}>
                   {e.date ? new Date(e.date).toLocaleString("pl-PL", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}

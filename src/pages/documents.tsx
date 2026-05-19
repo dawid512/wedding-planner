@@ -2,7 +2,7 @@
 import React from "react";
 import { Field, Icon, fmtDate } from "../core";
 import type { AppData, PageProps } from "../core";
-import { PageHeader, DateInput } from "./_shared";
+import { PageHeader } from "./_shared";
 
 type PersonKey   = "bride" | "groom";
 type WitnessKey  = "witness1" | "witness2";
@@ -91,7 +91,7 @@ export function PageDocuments({ data, set, editing }: PageProps) {
           <div className="row" style={{ gridTemplateColumns: "180px 1fr" }}>
             <div className="row__label">Data</div>
             {editing ? (
-              <DateInput value={dd.ceremony?.date || ""} onChange={(v) => updCeremony("date", v)} />
+              <input type="date" className="field__input" value={dd.ceremony?.date || ""} onChange={(e) => updCeremony("date", e.target.value)} />
             ) : (
               <span>{dd.ceremony?.date ? fmtDate(dd.ceremony.date) : "—"}</span>
             )}
@@ -99,7 +99,7 @@ export function PageDocuments({ data, set, editing }: PageProps) {
           <div className="row" style={{ gridTemplateColumns: "180px 1fr", borderBottom: "none" }}>
             <div className="row__label">Godzina</div>
             {editing ? (
-              <DateInput type="time" value={dd.ceremony?.time || ""} onChange={(v) => updCeremony("time", v)} />
+              <input type="time" className="field__input" value={dd.ceremony?.time || ""} onChange={(e) => updCeremony("time", e.target.value)} />
             ) : (
               <span className="mono">{dd.ceremony?.time || "—"}</span>
             )}
@@ -117,7 +117,7 @@ export function PageDocuments({ data, set, editing }: PageProps) {
               <div key={field} className="row" style={{ gridTemplateColumns: "140px 1fr" }}>
                 <div className="row__label">{lbl}</div>
                 {editing && field === "birthDate" ? (
-                  <DateInput value={ddAsRecord[who]?.[field] || ""} onChange={(v) => updPerson(who, field, v)} />
+                  <input type="date" className="field__input" value={ddAsRecord[who]?.[field] || ""} onChange={(e) => updPerson(who, field, e.target.value)} />
                 ) : (
                   <Field
                     value={ddAsRecord[who]?.[field]}

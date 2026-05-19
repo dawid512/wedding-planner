@@ -1211,10 +1211,7 @@ function UserMenu({ auth, onInviteClick }: UserMenuProps) {
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                         {ws.name}
                       </span>
-                      {isDefault && (
-                        <span title="Domyślny plan" style={{ color: "var(--accent)", fontSize: 12 }}>★</span>
-                      )}
-                      {isActive && !isDefault && <Icon name="check" size={12} />}
+                      {isActive && <Icon name="check" size={12} />}
                     </button>
                     {/* Ustaw/wyczyść domyślny */}
                     <button
