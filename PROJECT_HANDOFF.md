@@ -209,10 +209,10 @@ Wniosek:
 10. `src/core.tsx`
     dane startowe, helpery, komponenty bazowe, typy domenowe (zmigrowany do TS)
 11. `src/pages/` — **aktualny katalog stron** (od 2026-05-19):
-    - `_shared.tsx` — PageHeader
+    - `_shared.tsx` — PageHeader, DateInput (komponent daty z przyciskiem × do czyszczenia)
     - `index.ts` — barrel re-export
     - `dashboard.tsx`, `tasks.tsx`, `budget.tsx`, `guests.tsx`, `tables.tsx`, `vendors.tsx`, `schedule.tsx`, `menu.tsx`, `outfits.tsx`, `inspiration.tsx`, `gifts.tsx`, `honeymoon.tsx`, `events.tsx`, `music.tsx`, `documents.tsx`, `payments.tsx`
-    - `pages-1.tsx` / `pages-2.tsx` / `pages-3.tsx` — DEPRECATED, nie importowane, do ręcznego usunięcia
+    - `pages-1.tsx` / `pages-2.tsx` / `pages-3.tsx` — USUNIĘTE (usunął użytkownik 2026-05-19)
 12. `CODEBASE.md` — mapa kodu dla agenta AI (struktura plików, typy, flow zapisu, jak dodać stronę)
 14. `src/tweaks-panel.tsx`
     panel tweakow (zmigrowany do TS)
@@ -334,7 +334,7 @@ Wniosek:
 1. ~~**Refaktoryzacja i nawigacja po kodzie**~~ ✅ ZROBIONE (2026-05-19) — `src/pages/` (16 komponentów stron + `_shared.tsx` + `index.ts`), `CODEBASE.md`, `app.tsx` importuje z `./pages`, typecheck 0 błędów. `pages-1/2/3.tsx` — deprecated, usunąć ręcznie.
 2. ~~**UI / mobile**~~ ✅ ZROBIONE (2026-05-19) — tabele scrollują poziomo w kartach (nie wylewają poza stronę), `overflow-x: hidden` na `html/body/main`, touch-targety ≥ 44px, task-lista wrappuje ≤640px, KPI 2-kolumny na telefonie, hero kompaktowy, modal bottom-sheet ≤480px, `.mb-24` utility.
 2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze). Sprawdzić breakpointy, inputy, modalne na małych ekranach.
-3. **Pola daty na telefonie** — na mobilnym nie da się wyczyścić zawartości pola `<input type="date">`; dodać przycisk `×` w trybie edycji obok każdego pola daty (widoczny tylko gdy pole ma wartość i `editing === true`).
+3. ~~**Pola daty na telefonie**~~ ✅ ZROBIONE (2026-05-19) — `DateInput` w `_shared.tsx` z przyciskiem `×`; zaktualizowane: `dashboard.tsx`, `tasks.tsx`, `payments.tsx`, `events.tsx`, `documents.tsx`.
 4. **Fix blokady edycji (KRYTYCZNY)** — nadal 2 użytkowników może edytować naraz. Obecna implementacja write-then-verify (350 ms delay) nie działa w praktyce. Wymaga innego podejścia — np. oddzielny plik `wedding-lock.json` lub polling przed edycją.
 5. **Strona Budżet — koszty automatyczne** — dodać statyczną (poza trybem edycji) sekcję "Sala weselna · goście" pokazującą sumę kosztów z kalkulatora z strony Lista Gości. Tak samo dla pozycji Stroje — auto-sumowanie z strony Stroje. Poprawić etykietę "auto · z Stroje" → czytelny tooltip / opis źródła danych.
 6. **Lista Gości — domyślne dane startowe** — przy pierwszym uruchomieniu (pusta lista) defaultowo tworzyć: stół "Para Młoda" z 2 osobami (Pan Młody, Pani Młoda), potem standardowe "Stół 1", "Stół 2" itd. jako sugestia.
@@ -438,6 +438,17 @@ Wniosek:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (TODO #3: DateInput z przyciskiem × dla pól daty)
+
+1. Dodano komponent `DateInput` w `src/pages/_shared.tsx` — obsługuje `type: "date" | "datetime-local" | "time"`. Wyświetla przycisk `×` (clear) gdy pole ma wartość i `editing === true`. Przycisk ma touch-target 44px na mobile.
+2. Dodano style `.date-input-wrap` i `.date-clear-btn` w `src/styles.css` — wrapper jako `position: relative`, przycisk absolutnie pozycjonowany po prawej, na mobile zwiększony do 44px.
+3. Zaktualizowano `src/pages/dashboard.tsx` — data ślubu używa `DateInput`.
+4. Zaktualizowano `src/pages/tasks.tsx` — termin zadania używa `DateInput`.
+5. Zaktualizowano `src/pages/payments.tsx` — termin płatności używa `DateInput`.
+6. Zaktualizowano `src/pages/events.tsx` — datetime wydarzenia używa `DateInput` (type="datetime-local").
+7. Zaktualizowano `src/pages/documents.tsx` — data ceremonii, godzina ceremonii i daty urodzin (panna młoda / pan młody) używają `DateInput`.
+8. `npm run typecheck` — 0 błędów.
 
 ### 2026-05-19 (fix: race condition w edit lock — ETag + If-Match)
 

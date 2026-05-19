@@ -3,6 +3,7 @@ import React from "react";
 import { Field, Check, fmtCurrency, fmtDate, daysUntil, allOutfitTotals } from "../core";
 import type { AppData } from "../core";
 import type { PageProps } from "../core";
+import { DateInput } from "./_shared";
 
 export function PageDashboard({ data, set, editing }: PageProps) {
   const dleft = daysUntil(data.couple.date);
@@ -48,11 +49,11 @@ export function PageDashboard({ data, set, editing }: PageProps) {
             <span className="hero__meta-label">Data</span>
             <span className="hero__meta-val">
               {editing ? (
-                <input
-                  type="date"
+                <DateInput
                   value={data.couple.date || ""}
-                  onChange={(e) => set((d: AppData) => ({ ...d, couple: { ...d.couple, date: e.target.value } }))}
-                  style={{ font: "inherit", fontSize: "inherit", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 6px", background: "var(--surface)", color: "inherit" }}
+                  onChange={(v) => set((d: AppData) => ({ ...d, couple: { ...d.couple, date: v } }))}
+                  className="field__input"
+                  style={{ font: "inherit", fontSize: "inherit" }}
                 />
               ) : (
                 <span className={!data.couple.date ? "muted" : ""}>

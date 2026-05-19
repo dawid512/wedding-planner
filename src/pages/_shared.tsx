@@ -3,6 +3,42 @@
 import React from "react";
 
 // ============================================================
+// DATE INPUT — with × clear button (visible on mobile edit mode)
+// ============================================================
+
+interface DateInputProps {
+  type?: "date" | "datetime-local" | "time";
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export function DateInput({ type = "date", value, onChange, className = "field__input", style }: DateInputProps) {
+  return (
+    <div className="date-input-wrap" style={style}>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={className}
+      />
+      {value && (
+        <button
+          type="button"
+          className="date-clear-btn"
+          onClick={() => onChange("")}
+          title="Wyczyść datę"
+          aria-label="Wyczyść datę"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // PAGE HEADER
 // ============================================================
 

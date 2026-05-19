@@ -2,7 +2,7 @@
 import React from "react";
 import { Field, Check, Icon, fmtDate } from "../core";
 import type { AppData, PageProps } from "../core";
-import { PageHeader } from "./_shared";
+import { PageHeader, DateInput } from "./_shared";
 
 export function PageTasks({ data, set, editing }: PageProps) {
   const addTask = () => set((d: AppData) => ({
@@ -54,8 +54,7 @@ export function PageTasks({ data, set, editing }: PageProps) {
               </div>
               <div className="task__due">
                 {editing ? (
-                  <input type="date" value={t.due || ""} onChange={(e) => updateTask(t.id, { due: e.target.value })}
-                    className="field__input" style={{ minWidth: 140 }} />
+                  <DateInput value={t.due || ""} onChange={(v) => updateTask(t.id, { due: v })} />
                 ) : (t.due ? fmtDate(t.due) : "—")}
               </div>
               {editing && (
