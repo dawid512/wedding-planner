@@ -48,6 +48,7 @@ export interface Guest {
   address: string;
   needsAccommodation: boolean;
   poprawiny: boolean;
+  partnerId?: string;  // ID drugiej osoby w parze (bidirectional)
 }
 
 export interface VenueSettings {

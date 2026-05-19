@@ -339,7 +339,7 @@ Wniosek:
 5. ~~**Strona Budżet — koszty automatyczne**~~ ✅ ZROBIONE (2026-05-19) — `calcVenueCosts()` w `core.tsx`; auto-wiersz "Sala weselna" w `budget.tsx`; wliczony do sum `plannedAll`/`actualAll`.
 6. **Lista Gości — domyślne dane startowe** — przy pierwszym uruchomieniu (pusta lista) defaultowo tworzyć: stół "Para Młoda" z 2 osobami (Pan Młody, Pani Młoda), potem standardowe "Stół 1", "Stół 2" itd. jako sugestia.
 7. ~~**Lista Gości — uproszczenie**~~ ✅ ZROBIONE (2026-05-19) — `plusone`, `needsTransport`, `giftReceived` usunięte z `Guest` interface, `EMPTY_DATA` i `addGuest`.
-8. **Lista Gości — parowanie gości** — dodać opcję "Dodaj partnera" łączącą dwie osoby w parę. Pary wyświetlane jeden pod drugim. Para traktowana jako jednostka przy przydziale do stołów.
+8. ~~**Lista Gości — parowanie gości**~~ ✅ ZROBIONE (2026-05-19) — `partnerId?: string` w `Guest`, `pair`/`unpair`, `buildOrderedGuests`, badge ↔, plan stołów też.
 9. **Plan stołów — domyślny stół pary młodej** — domyślnie przypisać Pan Młody + Pani Młoda do stołu "Para Młoda" (2-osobowy). Spójne z domyślnymi danymi z pkt 6.
 10. **Menu boczne** — usunąć z sidebar: "Współedytorzy · 1" i "Zaproś osobę". Zarządzanie dostępem zostaje tylko w UserMenu (avatar).
 11. **Obsługa zdjęć i grafik** — upload do folderu na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać file ID lub URL (nie base64, nie blob). Strategia: każdy user uploaduje do swojego `WeddingPlanner/attachments/`; linki współdzielone przez permissions Drive.
@@ -438,6 +438,19 @@ Wniosek:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (TODO #8: Goście — parowanie)
+
+1. Dodano `partnerId?: string` do `Guest` interface w `src/core.tsx` (bidirektywne — oba goście mają nawzajem swoje ID).
+2. `buildOrderedGuests(guests)` — helper w `guests.tsx` sortujący pary razem w obrębie grupy; partner pojawia się bezpośrednio po swoim gościu.
+3. `pair(idA, idB)` — ustawia `partnerId` na obu gościach atomicznie.
+4. `unpair(id)` — czyści `partnerId` na obu gościach.
+5. `removeGuest` zaktualizowany: przy usuwaniu gościa automatycznie czyści `partnerId` jego partnera.
+6. Tryb edycji: każdy gość ma przycisk "↔ Sparuj" → dropdown z listą gości bez pary (całej listy, nie tylko tej strony); po wyborze → sparowanie; jeśli już sparowany → pokazuje imię + przycisk "Rozłącz".
+7. Tryb widoku: sparowani goście mają badge "↔ [imię]" pod nazwiskiem i lekkie tło (`oklch(from var(--accent) ...)`).
+8. Plan stołów (`tables.tsx`): sparowani goście mają ikonkę "↔" z tooltipem "Para: [imię]" obok nazwiska w karciku stołu.
+9. Statystyki strony: dodano kafelek "Par" (liczba sparowanych / 2).
+10. `npm run typecheck` — 0 błędów.
 
 ### 2026-05-19 (TODO #7: Goście — uproszczenie modelu)
 
