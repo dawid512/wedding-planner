@@ -43,13 +43,10 @@ export interface Guest {
   side: string;
   rsvp: string;
   diet: string;
-  plusone: boolean;
   guestType: GuestType;
   phone: string;
   address: string;
   needsAccommodation: boolean;
-  needsTransport: boolean;
-  giftReceived: boolean;
   poprawiny: boolean;
 }
 
@@ -287,8 +284,8 @@ const EMPTY_DATA: AppData = {
   ],
   // guests
   guests: [
-    { id: "g1", name: "", side: "Panna młoda", rsvp: "Czeka", diet: "", plusone: false, guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false, poprawiny: false },
-    { id: "g2", name: "", side: "Pan młody", rsvp: "Czeka", diet: "", plusone: false, guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false, poprawiny: false },
+    { id: "g1", name: "", side: "Panna młoda", rsvp: "Czeka", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false },
+    { id: "g2", name: "", side: "Pan młody", rsvp: "Czeka", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false },
   ],
   // tables
   tables: [

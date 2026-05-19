@@ -46,7 +46,7 @@ export function PageGuests({ data, set, editing }: PageProps) {
 
   const addGuest = (side: GuestSide) => set((d: AppData) => ({
     ...d,
-    guests: [...d.guests, { id: "g" + Date.now(), name: "", side, rsvp: "Czeka", diet: "", plusone: false, guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false, poprawiny: false }],
+    guests: [...d.guests, { id: "g" + Date.now(), name: "", side, rsvp: "Czeka", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false }],
   }));
   const removeGuest = (id: string) => set((d: AppData) => ({ ...d, guests: d.guests.filter(g => g.id !== id) }));
   const updateGuest = (id: string, patch: Partial<AppData["guests"][number]>) => set((d: AppData) => ({

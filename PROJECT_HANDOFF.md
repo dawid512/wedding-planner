@@ -338,7 +338,7 @@ Wniosek:
 4. **Fix blokady edycji (KRYTYCZNY)** — nadal 2 użytkowników może edytować naraz. Obecna implementacja write-then-verify (350 ms delay) nie działa w praktyce. Wymaga innego podejścia — np. oddzielny plik `wedding-lock.json` lub polling przed edycją.
 5. ~~**Strona Budżet — koszty automatyczne**~~ ✅ ZROBIONE (2026-05-19) — `calcVenueCosts()` w `core.tsx`; auto-wiersz "Sala weselna" w `budget.tsx`; wliczony do sum `plannedAll`/`actualAll`.
 6. **Lista Gości — domyślne dane startowe** — przy pierwszym uruchomieniu (pusta lista) defaultowo tworzyć: stół "Para Młoda" z 2 osobami (Pan Młody, Pani Młoda), potem standardowe "Stół 1", "Stół 2" itd. jako sugestia.
-7. **Lista Gości — uproszczenie** — usunąć kolumny/checkboxy: `+1`, transport, prezent. Odchudzić widok.
+7. ~~**Lista Gości — uproszczenie**~~ ✅ ZROBIONE (2026-05-19) — `plusone`, `needsTransport`, `giftReceived` usunięte z `Guest` interface, `EMPTY_DATA` i `addGuest`.
 8. **Lista Gości — parowanie gości** — dodać opcję "Dodaj partnera" łączącą dwie osoby w parę. Pary wyświetlane jeden pod drugim. Para traktowana jako jednostka przy przydziale do stołów.
 9. **Plan stołów — domyślny stół pary młodej** — domyślnie przypisać Pan Młody + Pani Młoda do stołu "Para Młoda" (2-osobowy). Spójne z domyślnymi danymi z pkt 6.
 10. **Menu boczne** — usunąć z sidebar: "Współedytorzy · 1" i "Zaproś osobę". Zarządzanie dostępem zostaje tylko w UserMenu (avatar).
@@ -438,6 +438,15 @@ Wniosek:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (TODO #7: Goście — uproszczenie modelu)
+
+1. Usunięto `plusone: boolean`, `needsTransport: boolean`, `giftReceived: boolean` z `Guest` interface w `src/core.tsx`.
+2. Usunięto te pola z domyślnych wpisów w `EMPTY_DATA.guests`.
+3. Usunięto z `addGuest` defaults w `src/pages/guests.tsx`.
+4. Pola były obecne w modelu od początku ale nigdy nie renderowane w tabeli — czyste usunięcie, bez zmian UI.
+5. Istniejące dane w Drive (`wedding-data.json`) z tymi polami działają bez zmian (extra pola JSON są ignorowane).
+6. `npm run typecheck` — 0 błędów.
 
 ### 2026-05-19 (TODO #5: Budżet — auto-row koszt sali)
 
