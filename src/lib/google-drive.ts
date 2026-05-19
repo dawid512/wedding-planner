@@ -86,6 +86,31 @@ export async function readJsonFile<T>(token: string, fileId: string): Promise<T>
   return r.json() as Promise<T>;
 }
 
+/**
+ * Download a JSON file from Drive AND fetch its ETag in parallel.
+ * The ETag is used for optimistic concurrency control (If-Match header on writes).
+ * Every write to the file changes its ETag, so a conditional write will fail with
+ * 412 Precondition Failed if someone else wrote between our read and our write.
+ */
+export async function readJsonFileWithEtag<T>(
+  token: string,
+  fileId: string,
+): Promise<{ data: T; etag: string }> {
+  const [metaRes, dataRes] = await Promise.all([
+    fetch(`${DRIVE_API}/files/${fileId}?fields=etag`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  ]);
+  if (!metaRes.ok) throw new Error(`readJsonFileWithEtag meta failed: ${metaRes.status}`);
+  if (!dataRes.ok) throw new Error(`readJsonFileWithEtag data failed: ${dataRes.status}`);
+  const { etag } = (await metaRes.json()) as { etag: string };
+  const data = (await dataRes.json()) as T;
+  return { data, etag };
+}
+
 /** Create a new JSON file inside a Drive folder. Returns the new file ID. */
 export async function createJsonFile<T>(
   token: string,
@@ -110,20 +135,30 @@ export async function createJsonFile<T>(
   return id;
 }
 
-/** Update (overwrite) an existing JSON file on Drive. */
+/**
+ * Update (overwrite) an existing JSON file on Drive.
+ * Pass `ifMatchEtag` to enable optimistic concurrency control:
+ * if the file was modified after you read it, Drive returns 412 and
+ * the function throws an error with message "LOCK_CONFLICT".
+ */
 export async function updateJsonFile<T>(
   token: string,
   fileId: string,
   data: T,
+  ifMatchEtag?: string,
 ): Promise<void> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (ifMatchEtag) headers["If-Match"] = ifMatchEtag;
+
   const r = await fetch(`${UPLOAD_API}/files/${fileId}?uploadType=media`, {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify(data),
   });
+  if (r.status === 412) throw new Error("LOCK_CONFLICT");
   if (!r.ok) throw new Error(`updateJsonFile failed: ${r.status}`);
 }
 

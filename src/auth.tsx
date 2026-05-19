@@ -10,6 +10,7 @@ import {
   findOrCreateFolder,
   findFile,
   readJsonFile,
+  readJsonFileWithEtag,
   createJsonFile,
   updateJsonFile,
   shareFile,
@@ -572,46 +573,59 @@ function useAuth(): AuthState {
 
   /**
    * Acquire the soft edit lock for the active workspace.
-   * Reads fresh data from Drive, checks if someone else holds a valid lock,
-   * then writes a new lock with the current user's email + timestamp.
+   *
+   * Uses ETag-based optimistic concurrency control to eliminate the TOCTOU
+   * race condition where two users could both read "no lock" and both write
+   * their own lock simultaneously:
+   *   1. Read fresh file content + ETag from Drive (two parallel requests).
+   *   2. Check whether another user holds a valid (non-expired) lock.
+   *   3. Write the new lock with `If-Match: <etag>`.
+   *      → If someone else wrote between step 1 and step 3,
+   *        Drive returns 412 Precondition Failed → we return { ok: false }.
+   *
+   * This guarantees that at most one user can successfully acquire the lock
+   * even when two users click "Edytuj" at the exact same moment.
    */
   const acquireLock = useCallback(async (): Promise<{ ok: true } | { ok: false; lockedBy: string }> => {
-    const t     = _tokenRef.current;
-    const fid   = fileIdRef.current;
-    const email = _tokenRef.current ? undefined : undefined; // resolved below
-    const wsId  = activeWsIdRef.current;
+    const t    = _tokenRef.current;
+    const fid  = fileIdRef.current;
+    const wsId = activeWsIdRef.current;
 
-    // Get current user email from state via allWs
-    let myEmail: string | undefined;
-    setAllWs(prev => {
-      myEmail = prev.find(w => w.id === wsId)?.ownerEmail
-        || localStorage.getItem(LS.email)
-        || undefined;
-      return prev;
-    });
-    myEmail = myEmail ?? localStorage.getItem(LS.email) ?? undefined;
-
+    const myEmail = localStorage.getItem(LS.email) ?? undefined;
     if (!t || !fid || !myEmail) return { ok: false, lockedBy: "?" };
 
     try {
-      const freshData = await readJsonFile<AppData>(t, fid);
+      // Step 1: read content + ETag atomically (parallel)
+      const { data: freshData, etag } = await readJsonFileWithEtag<AppData>(t, fid);
       const lock = freshData._editLock;
 
-      // Block if another user holds a valid (non-expired) lock
+      // Step 2: check if another user holds a valid lock
       if (lock && lock.email !== myEmail && Date.now() - lock.lockedAt < LOCK_TTL_MS) {
         return { ok: false, lockedBy: lock.email };
       }
 
-      // Write lock to Drive
-      await updateJsonFile(t, fid, { ...freshData, _editLock: { email: myEmail, lockedAt: Date.now() } });
+      // Step 3: write lock with If-Match — throws "LOCK_CONFLICT" on 412
+      const lockedAt = Date.now();
+      await updateJsonFile(
+        t, fid,
+        { ...freshData, _editLock: { email: myEmail, lockedAt } },
+        etag,
+      );
 
-      // Update local state with fresh data (preserves any remote changes)
+      // Update local state with fresh Drive data
       setAllWs(prev => prev.map(w =>
-        w.id === wsId ? { ...w, data: { ...freshData, _editLock: { email: myEmail!, lockedAt: Date.now() } } } : w,
+        w.id === wsId
+          ? { ...w, data: { ...freshData, _editLock: { email: myEmail, lockedAt } } }
+          : w,
       ));
 
       return { ok: true };
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === "LOCK_CONFLICT") {
+        // 412: someone wrote between our read and our write — treat as locked
+        return { ok: false, lockedBy: "?" };
+      }
       return { ok: false, lockedBy: "?" };
     }
   }, []);
