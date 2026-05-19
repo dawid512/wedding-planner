@@ -17,6 +17,7 @@ import {
   removePermission,
   updatePermission,
   getFileCapabilities,
+  getFileMeta,
   listSharedFiles,
 } from "./lib/google-drive";
 import type { DrivePermission } from "./lib/google-drive";
@@ -313,18 +314,17 @@ function useAuth(): AuthState {
       await Promise.all(config.sharedPlans.map(async (gFileId) => {
         if (gFileId === ownWs.fileId) return; // skip own plan
         try {
-          const data = await readJsonFile<AppData>(token, gFileId);
-          let role: "Edytor" | "Podgląd" = "Podgląd";
-          try {
-            const caps = await getFileCapabilities(token, gFileId);
-            role = caps.canEdit ? "Edytor" : "Podgląd";
-          } catch { /* keep default */ }
+          const [data, meta] = await Promise.all([
+            readJsonFile<AppData>(token, gFileId),
+            getFileMeta(token, gFileId).catch(() => ({ canEdit: false, ownerEmail: "" })),
+          ]);
+          const role: "Edytor" | "Podgląd" = meta.canEdit ? "Edytor" : "Podgląd";
 
           loadedGuests.push({
             id:            gFileId,
             fileId:        gFileId,
-            ownerEmail:    "",
-            name:          "Wspólny plan ślubny",
+            ownerEmail:    meta.ownerEmail,
+            name:          meta.ownerEmail || "Wspólny plan ślubny",
             data:          { ...EMPTY_DATA, ...data },
             collaborators: [],
             createdAt:     Date.now(),
@@ -356,18 +356,17 @@ function useAuth(): AuthState {
           if (alreadyKnown) return;
 
           try {
-            const data = await readJsonFile<AppData>(token, sf.id);
-            let role: "Edytor" | "Podgląd" = "Podgląd";
-            try {
-              const caps = await getFileCapabilities(token, sf.id);
-              role = caps.canEdit ? "Edytor" : "Podgląd";
-            } catch { /* keep default */ }
+            const [data, meta] = await Promise.all([
+              readJsonFile<AppData>(token, sf.id),
+              getFileMeta(token, sf.id).catch(() => ({ canEdit: false, ownerEmail: "" })),
+            ]);
+            const role: "Edytor" | "Podgląd" = meta.canEdit ? "Edytor" : "Podgląd";
 
             loadedGuests.push({
               id:            sf.id,
               fileId:        sf.id,
-              ownerEmail:    "",
-              name:          "Wspólny plan ślubny",
+              ownerEmail:    meta.ownerEmail,
+              name:          meta.ownerEmail || "Wspólny plan ślubny",
               data:          { ...EMPTY_DATA, ...data },
               collaborators: [],
               createdAt:     Date.now(),
@@ -459,19 +458,17 @@ function useAuth(): AuthState {
     setIsLoading(true);
     setNeedsPicker(false);
     try {
-      const data = await readJsonFile<AppData>(t, pickedFileId);
-
-      let role: "Edytor" | "Podgląd" = "Edytor";
-      try {
-        const caps = await getFileCapabilities(t, pickedFileId);
-        role = caps.canEdit ? "Edytor" : "Podgląd";
-      } catch { /* keep default */ }
+      const [data, meta] = await Promise.all([
+        readJsonFile<AppData>(t, pickedFileId),
+        getFileMeta(t, pickedFileId).catch(() => ({ canEdit: true, ownerEmail: "" })),
+      ]);
+      const role: "Edytor" | "Podgląd" = meta.canEdit ? "Edytor" : "Podgląd";
 
       const ws: Workspace = {
         id:            pickedFileId,
         fileId:        pickedFileId,
-        ownerEmail:    "",
-        name:          "Wspólny plan ślubny",
+        ownerEmail:    meta.ownerEmail,
+        name:          meta.ownerEmail || "Wspólny plan ślubny",
         data:          { ...EMPTY_DATA, ...data },
         collaborators: [],
         createdAt:     Date.now(),

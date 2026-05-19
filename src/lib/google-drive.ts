@@ -208,6 +208,30 @@ export async function getFileCapabilities(
 }
 
 /**
+ * Get file capabilities + owner email in a single Drive API request.
+ * Used when loading shared plans so we can display the owner's email
+ * as the workspace name instead of a generic label.
+ */
+export async function getFileMeta(
+  token: string,
+  fileId: string,
+): Promise<{ canEdit: boolean; ownerEmail: string }> {
+  const r = await fetch(
+    `${DRIVE_API}/files/${fileId}?fields=capabilities(canEdit),owners(emailAddress)`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!r.ok) throw new Error(`getFileMeta failed: ${r.status}`);
+  const { capabilities, owners } = (await r.json()) as {
+    capabilities?: { canEdit?: boolean };
+    owners?: Array<{ emailAddress?: string }>;
+  };
+  return {
+    canEdit:    capabilities?.canEdit ?? false,
+    ownerEmail: owners?.[0]?.emailAddress ?? "",
+  };
+}
+
+/**
  * List all Drive files with this name that the user can access.
  * Used for auto-discovery: guest sees shared wedding plan on login without
  * needing a ?join= link.
