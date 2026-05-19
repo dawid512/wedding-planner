@@ -10,7 +10,6 @@ import {
   findOrCreateFolder,
   findFile,
   readJsonFile,
-  readJsonFileWithEtag,
   createJsonFile,
   updateJsonFile,
   shareFile,
@@ -574,17 +573,16 @@ function useAuth(): AuthState {
   /**
    * Acquire the soft edit lock for the active workspace.
    *
-   * Uses ETag-based optimistic concurrency control to eliminate the TOCTOU
-   * race condition where two users could both read "no lock" and both write
-   * their own lock simultaneously:
-   *   1. Read fresh file content + ETag from Drive (two parallel requests).
-   *   2. Check whether another user holds a valid (non-expired) lock.
-   *   3. Write the new lock with `If-Match: <etag>`.
-   *      → If someone else wrote between step 1 and step 3,
-   *        Drive returns 412 Precondition Failed → we return { ok: false }.
+   * Uses a write-then-verify strategy to detect simultaneous lock attempts
+   * without relying on If-Match (which is not supported on the Drive media
+   * upload endpoint):
+   *   1. Read fresh file content — check whether another user has a valid lock.
+   *   2. Write our lock (with a precise lockedAt timestamp as a nonce).
+   *   3. Wait 350 ms, then re-read and confirm OUR lock is present.
+   *      If someone else's lock is there instead, they won and we return { ok: false }.
    *
-   * This guarantees that at most one user can successfully acquire the lock
-   * even when two users click "Edytuj" at the exact same moment.
+   * The 350 ms window ensures that if two users write simultaneously,
+   * the second verify read will see the final state and one of them will back off.
    */
   const acquireLock = useCallback(async (): Promise<{ ok: true } | { ok: false; lockedBy: string }> => {
     const t    = _tokenRef.current;
@@ -595,37 +593,39 @@ function useAuth(): AuthState {
     if (!t || !fid || !myEmail) return { ok: false, lockedBy: "?" };
 
     try {
-      // Step 1: read content + ETag atomically (parallel)
-      const { data: freshData, etag } = await readJsonFileWithEtag<AppData>(t, fid);
-      const lock = freshData._editLock;
+      // Step 1: read fresh data from Drive, check for an active lock by someone else
+      const freshData = await readJsonFile<AppData>(t, fid);
+      const existingLock = freshData._editLock;
 
-      // Step 2: check if another user holds a valid lock
-      if (lock && lock.email !== myEmail && Date.now() - lock.lockedAt < LOCK_TTL_MS) {
-        return { ok: false, lockedBy: lock.email };
+      if (
+        existingLock &&
+        existingLock.email !== myEmail &&
+        Date.now() - existingLock.lockedAt < LOCK_TTL_MS
+      ) {
+        return { ok: false, lockedBy: existingLock.email };
       }
 
-      // Step 3: write lock with If-Match — throws "LOCK_CONFLICT" on 412
+      // Step 2: write our lock — lockedAt acts as a unique nonce
       const lockedAt = Date.now();
-      await updateJsonFile(
-        t, fid,
-        { ...freshData, _editLock: { email: myEmail, lockedAt } },
-        etag,
-      );
+      await updateJsonFile(t, fid, { ...freshData, _editLock: { email: myEmail, lockedAt } });
 
-      // Update local state with fresh Drive data
+      // Step 3: verify — wait briefly then re-read; if our lock is gone, someone beat us
+      await new Promise<void>(res => setTimeout(res, 350));
+      const verifyData = await readJsonFile<AppData>(t, fid);
+      const verifyLock = verifyData._editLock;
+
+      if (!verifyLock || verifyLock.email !== myEmail || verifyLock.lockedAt !== lockedAt) {
+        // Someone else's write landed after ours — back off
+        return { ok: false, lockedBy: verifyLock?.email ?? "?" };
+      }
+
+      // Lock confirmed — update local state with latest Drive data
       setAllWs(prev => prev.map(w =>
-        w.id === wsId
-          ? { ...w, data: { ...freshData, _editLock: { email: myEmail, lockedAt } } }
-          : w,
+        w.id === wsId ? { ...w, data: { ...verifyData } } : w,
       ));
 
       return { ok: true };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      if (msg === "LOCK_CONFLICT") {
-        // 412: someone wrote between our read and our write — treat as locked
-        return { ok: false, lockedBy: "?" };
-      }
+    } catch {
       return { ok: false, lockedBy: "?" };
     }
   }, []);
