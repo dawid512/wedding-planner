@@ -175,7 +175,7 @@ Zasady:
 8. zarządzanie rolami — właściciel zmienia Edytor↔Podgląd i usuwa osoby z InviteModal
 9. Google Picker — fallback gdy użytkownik chce ręcznie znaleźć plik
 10. workspace switcher w UserMenu — kliknięcie awatara → lista planów + możliwość przełączania
-11. **soft edit lock** — `_editLock: { email, lockedAt }` w `wedding-data.json`; TTL 10 min; ostrzeżenie 8 min; `acquireLock` używa `readJsonFileWithEtag` + `If-Match` (ETag) — eliminuje race condition gdy 2 osoby klikają "Edytuj" równocześnie (Drive zwraca 412 dla drugiego zapisu)
+11. **soft edit lock** — `_editLock: { email, lockedAt }` w `wedding-data.json`; TTL 10 min; ostrzeżenie 8 min; `acquireLock` używa strategii write-then-verify (read → check → write → 350 ms → re-read → verify lockedAt nonce) — wykrywa race condition bez If-Match (Drive nie obsługuje If-Match na media upload endpoincie)
 12. brak sync engine i per-module locks (do zrobienia)
 12. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
 13. dzialajacy UI i deploy

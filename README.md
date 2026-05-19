@@ -100,7 +100,7 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 63. **React.memo na komponentach stron** — `PAGE_COMPONENTS` w `app.tsx` owinięto w `React.memo`. Strony nie re-renderują się przy otwieraniu `InviteModal` — eliminuje lag przy otwieraniu modala.
 64. **Email właściciela jako nazwa planu** — `getFileMeta` pobiera `owners[0].emailAddress` razem z `capabilities.canEdit` w jednym żądaniu Drive API. Udostępnione plany pokazują email właściciela zamiast "Wspólny plan ślubny".
 65. **Soft edit lock** — blokada edycji zapisywana w `_editLock: { email, lockedAt }` w `wedding-data.json`. Przed wejściem w tryb edycji `acquireLock` odczytuje świeże dane z Drive i sprawdza aktywną blokadę. Przy próbie edycji gdy ktoś inny edytuje — pokazuje komunikat kto aktualnie edytuje. Po zapisie lub anulowaniu blokada jest usuwana z Drive. Timer bezczynności: ostrzeżenie po 8 min, wyrzucenie bez zapisu po 10 min. Ostrzeżenie ma opcje: Zapisz / Zostań w edycji (reset timera) / Anuluj bez zapisu.
-66. **Fix race condition w edit lock** — `acquireLock` używa teraz `readJsonFileWithEtag` + `If-Match` przy zapisie. Jeśli dwóch użytkowników kliknie „Edytuj" równocześnie, Drive zwraca `412 Precondition Failed` dla drugiego zapisu — gwarantuje że tylko jeden user otrzyma locka nawet przy jednoczesnym kliknięciu.
+66. **Fix edit lock — write-then-verify** — `acquireLock` używa strategii: read → check → write → czekaj 350 ms → re-read → verify. Jeśli po zapisie locka czyjaś blokada zastąpiła naszą (race condition), wykrywamy to i wycofujemy się. Podejście If-Match/ETag zostało porzucone bo Drive nie obsługuje go na endpoincie media upload.
 
 ## Do zrobienia teraz
 
