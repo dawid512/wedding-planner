@@ -103,6 +103,7 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 66. **Fix edit lock — write-then-verify** — `acquireLock` używa strategii: read → check → write → czekaj 350 ms → re-read → verify. Jeśli po zapisie locka czyjaś blokada zastąpiła naszą (race condition), wykrywamy to i wycofujemy się. Podejście If-Match/ETag zostało porzucone bo Drive nie obsługuje go na endpoincie media upload.
 67. **Refaktoryzacja plików stron (TODO #1)** — podzielono `pages-1.tsx` / `pages-2.tsx` / `pages-3.tsx` na osobne pliki w `src/pages/` (16 plików + `_shared.tsx` + `index.ts`). `app.tsx` importuje wyłącznie z `./pages`. Usunięto duplikaty importów. Dodano `CODEBASE.md` jako mapę kodu dla agenta AI. `npm run typecheck` — 0 błędów.
 68. **Mobile responsive (TODO #2)** — `styles.css`: tabele w kartach scrollują poziomo (`overflow-x: auto` na `.card:has(.tbl)`) zamiast wylewać poza stronę; `overflow-x: hidden` na `html/body/main`; touch-targety ≥ 44px (przyciski, inputy, nav); task-lista wrappuje na ≤640px; KPI 2-kolumny na telefonie; hero/countdown kompaktowy; modal jako bottom-sheet na ≤480px; `.mb-24` utility; breakpointy 900/640/480px.
+70. **Budżet — auto-row koszt sali (TODO #5)** — dodano `calcVenueCosts()` w `core.tsx`; w stronie Budżet pojawia się automatyczny wiersz "Sala weselna · auto · z Lista Gości" gdy jest ustawiona cena talerzyka i są goście. Wiersz pokazuje planowany koszt sali (goście × cena), zapłaconą zaliczkę, różnicę i status. Koszt sali wliczony do sum `Planowane` i `Wydane` na górze.
 69. **Przycisk × dla pól daty (TODO #3)** — dodano komponent `DateInput` w `_shared.tsx` z przyciskiem `×` (clear button) widocznym w trybie edycji gdy pole ma wartość. Zaktualizowano wszystkie pola daty: `dashboard.tsx`, `tasks.tsx`, `payments.tsx`, `events.tsx`, `documents.tsx`. `npm run typecheck` — 0 błędów.
 
 ## Do zrobienia teraz
@@ -114,7 +115,7 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze).
 3. ~~**Pola daty na telefonie**~~ ✅ ZROBIONE — `DateInput` komponent z przyciskiem `×` we wszystkich polach daty.
 4. **Fix blokady edycji** — nadal 2 użytkowników może edytować naraz; obecna implementacja write-then-verify nie działa w praktyce.
-5. **Strona Budżet — koszty sali i stroje** — dodać statyczną (nie do edycji) sekcję "Sala weselna · goście" z sumą cen wszystkich gości (tak jak na stronie Lista Gości). Tak samo dla Strojów. Poprawić "auto · z Stroje" → automatyczne uzupełnianie z strony Stroje lub Lista Gości.
+5. ~~**Strona Budżet — koszty sali i stroje**~~ ✅ ZROBIONE — auto-wiersz "Sala weselna · z Lista Gości" + istniejący auto-wiersz "Stroje · ze strony Stroje"; oba wliczone w sumy.
 6. **Lista Gości — domyślny stół pary młodej** — defaultowo stół pary młodej z 2 osobami (pan młody + pani młoda, z możliwością dodania więcej), a potem standardowo stół 1, stół 2 itd.
 7. **Lista Gości — uproszczenie** — usunąć opcje: `+1`, checkbox transport, checkbox prezent.
 8. **Lista Gości — parowanie gości** — dodać opcję "dodaj partnera" grupującą ludzi w pary; partnerzy wyświetlani jeden pod drugim dla lepszej czytelności; pary widoczne też w planie stołów.

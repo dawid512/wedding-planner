@@ -682,8 +682,47 @@ function allOutfitTotals(data: AppData): AllOutfitTotals {
   };
 }
 
+export interface VenueCosts {
+  planned:       number;   // totalCost + afterPartyCost
+  paid:          number;   // deposit zapłacony
+  totalCost:     number;   // koszt sali (wesele)
+  afterPartyCost:number;   // koszt sali (poprawiny)
+  deposit:       number;   // zaliczka
+  guestCount:    number;   // aktywni goście (bez odmów)
+  afterPartyCount: number; // goście na poprawinach
+  hasData:       boolean;  // czy warto w ogóle pokazywać wiersz
+}
+
+function calcVenueCosts(data: AppData): VenueCosts {
+  const vs  = data.venueSettings ?? { platePrice: "", afterPartyPlatePrice: "", deposit: "" };
+  const pp  = parseFloat(vs.platePrice) || 0;
+  const app = parseFloat(vs.afterPartyPlatePrice) || 0;
+  const dep = parseFloat(vs.deposit) || 0;
+
+  const named  = (data.guests || []).filter(g => g.name);
+  const active = named.filter(g => g.rsvp !== "Odmowa");
+
+  const adultsCount     = active.filter(g => !g.guestType || g.guestType === "adult").length;
+  const halfCount       = active.filter(g => g.guestType === "child_half").length;
+  const afterPartyCount = named.filter(g => g.poprawiny).length;
+
+  const totalCost       = pp > 0 ? (adultsCount * pp) + (halfCount * pp * 0.5) : 0;
+  const afterPartyCost  = app > 0 ? afterPartyCount * app : 0;
+
+  return {
+    planned:        totalCost + afterPartyCost,
+    paid:           dep,
+    totalCost,
+    afterPartyCost,
+    deposit:        dep,
+    guestCount:     active.length,
+    afterPartyCount,
+    hasData:        pp > 0 && active.length > 0,
+  };
+}
+
 export {
   EMPTY_DATA, PAGES, Field, Check, Icon,
   fmtCurrency, fmtDate, daysUntil,
-  outfitTotals, allOutfitTotals,
+  outfitTotals, allOutfitTotals, calcVenueCosts,
 };

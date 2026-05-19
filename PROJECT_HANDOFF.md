@@ -336,7 +336,7 @@ Wniosek:
 2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze). Sprawdzić breakpointy, inputy, modalne na małych ekranach.
 3. ~~**Pola daty na telefonie**~~ ✅ ZROBIONE (2026-05-19) — `DateInput` w `_shared.tsx` z przyciskiem `×`; zaktualizowane: `dashboard.tsx`, `tasks.tsx`, `payments.tsx`, `events.tsx`, `documents.tsx`.
 4. **Fix blokady edycji (KRYTYCZNY)** — nadal 2 użytkowników może edytować naraz. Obecna implementacja write-then-verify (350 ms delay) nie działa w praktyce. Wymaga innego podejścia — np. oddzielny plik `wedding-lock.json` lub polling przed edycją.
-5. **Strona Budżet — koszty automatyczne** — dodać statyczną (poza trybem edycji) sekcję "Sala weselna · goście" pokazującą sumę kosztów z kalkulatora z strony Lista Gości. Tak samo dla pozycji Stroje — auto-sumowanie z strony Stroje. Poprawić etykietę "auto · z Stroje" → czytelny tooltip / opis źródła danych.
+5. ~~**Strona Budżet — koszty automatyczne**~~ ✅ ZROBIONE (2026-05-19) — `calcVenueCosts()` w `core.tsx`; auto-wiersz "Sala weselna" w `budget.tsx`; wliczony do sum `plannedAll`/`actualAll`.
 6. **Lista Gości — domyślne dane startowe** — przy pierwszym uruchomieniu (pusta lista) defaultowo tworzyć: stół "Para Młoda" z 2 osobami (Pan Młody, Pani Młoda), potem standardowe "Stół 1", "Stół 2" itd. jako sugestia.
 7. **Lista Gości — uproszczenie** — usunąć kolumny/checkboxy: `+1`, transport, prezent. Odchudzić widok.
 8. **Lista Gości — parowanie gości** — dodać opcję "Dodaj partnera" łączącą dwie osoby w parę. Pary wyświetlane jeden pod drugim. Para traktowana jako jednostka przy przydziale do stołów.
@@ -438,6 +438,15 @@ Wniosek:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (TODO #5: Budżet — auto-row koszt sali)
+
+1. Dodano `VenueCosts` interface i `calcVenueCosts(data)` helper w `src/core.tsx` — oblicza planowany koszt sali (aktywni goście × cena talerzyka + poprawiny × cena poprawin) i zapłacone (zaliczka).
+2. `calcVenueCosts` wyeksportowany z `core.tsx`.
+3. W `src/pages/budget.tsx`: dodano import `calcVenueCosts`; `venue = calcVenueCosts(data)` wliczone do `plannedAll` i `actualAll` (gdy `venue.hasData`).
+4. Dodano auto-wiersz "Sala weselna · auto · z Lista Gości" — widoczny gdy ustawiona cena talerzyka i są aktywni goście. Wyświetla: planowany koszt, zaliczkę (= zapłacone), różnicę, status (Do opłaty / Zaliczka X% / Opłacone).
+5. Wiersz pojawia się przed wierszem Stroje, oba mają identyczny styl (`background: var(--accent-soft)`).
+6. `npm run typecheck` — 0 błędów.
 
 ### 2026-05-19 (TODO #3: DateInput z przyciskiem × dla pól daty)
 
