@@ -1212,6 +1212,26 @@ select.field__input {
 }
 .user-menu__item--danger { color: var(--ink-soft); }
 .user-menu__item--danger:hover { color: oklch(0.55 0.15 28); }
+.user-menu__section-label {
+  padding: 4px 14px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  opacity: 0.6;
+}
+.user-menu__ws-role {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--muted);
+  min-width: 18px;
+}
+.user-menu__item--active {
+  background: var(--bg-alt, rgba(0,0,0,.04));
+  font-weight: 600;
+}
 
 /* workspace label in topbar */
 .ws-label {

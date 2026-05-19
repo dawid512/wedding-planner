@@ -32,11 +32,13 @@ export interface GoogleUser {
   picture?: string;
 }
 
-/** Stored in localStorage for each guest plan the user has joined. */
-interface GuestPlanInfo {
-  fileId: string;
-  name: string;
-  role: "Edytor" | "Podgląd";
+/**
+ * Stored in user-config.json on the user's own Drive.
+ * Tracks fileIds of wedding plans shared with this user.
+ * Replaces the old localStorage guest plan storage — persists across devices.
+ */
+interface UserConfig {
+  sharedPlans: string[]; // fileIds of shared plans
 }
 
 interface Collaborator {
@@ -133,15 +135,15 @@ const _tokenAge:  { current: number }        = { current: 0 };
 const LS = {
   email:      "wp_g_email",
   name:       "wp_g_name",
-  fileId:     "wp_g_file_id",       // own plan file ID
-  folderId:   "wp_g_folder_id",     // own plan folder ID
-  wsName:     "wp_g_ws_name",       // own plan name
-  joinFileId: "wp_g_join_file_id",  // pending join param
-  guestPlans: "wp_g_guest_plans",   // JSON: GuestPlanInfo[]
-  activeWsId: "wp_g_active_ws_id",  // last active workspace ID (persisted)
+  fileId:     "wp_g_file_id",      // own plan file ID
+  folderId:   "wp_g_folder_id",    // own plan folder ID
+  wsName:     "wp_g_ws_name",      // own plan name
+  activeWsId: "wp_g_active_ws_id", // last active workspace ID (persisted)
 };
 
-const DATA_FILE              = "wedding-data.json";
+const DATA_FILE   = "wedding-data.json";
+const CONFIG_FILE = "user-config.json"; // stores shared plan fileIds in Drive
+
 // drive scope = full read/write to all Drive files the user has permission on.
 // drive.file alone was too restrictive: files shared via Drive API returned 404
 // and the Picker returned 401 when trying to list "Shared with me" files.
@@ -149,39 +151,27 @@ const DRIVE_SCOPES           = "https://www.googleapis.com/auth/drive openid ema
 const SILENT_RESTORE_TIMEOUT = 12_000;
 
 // ============================================================
-// LOCALSTORAGE HELPERS
+// DRIVE CONFIG HELPER
+// Reads/creates user-config.json in the user's WeddingPlanner folder.
+// Stores fileIds of plans shared with this user — persists across devices.
 // ============================================================
 
-function getGuestPlans(): GuestPlanInfo[] {
-  try { return JSON.parse(localStorage.getItem(LS.guestPlans) || "[]") as GuestPlanInfo[]; }
-  catch { return []; }
-}
-
-function saveGuestPlans(plans: GuestPlanInfo[]): void {
-  localStorage.setItem(LS.guestPlans, JSON.stringify(plans));
-}
-
-function upsertGuestPlan(plan: GuestPlanInfo): void {
-  const plans = getGuestPlans();
-  const idx   = plans.findIndex(p => p.fileId === plan.fileId);
-  if (idx >= 0) plans[idx] = plan; else plans.push(plan);
-  saveGuestPlans(plans);
-}
-
-function removeGuestPlan(fileId: string): void {
-  saveGuestPlans(getGuestPlans().filter(p => p.fileId !== fileId));
-}
-
-function readJoinParam(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  const join   = params.get("join");
-  if (join) {
-    localStorage.setItem(LS.joinFileId, join);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("join");
-    window.history.replaceState({}, "", url.toString());
+async function ensureUserConfig(
+  token: string,
+  folderId: string,
+): Promise<{ config: UserConfig; configFileId: string }> {
+  const empty: UserConfig = { sharedPlans: [] };
+  let cfId = await findFile(token, folderId, CONFIG_FILE);
+  if (!cfId) {
+    cfId = await createJsonFile(token, folderId, CONFIG_FILE, empty);
+    return { config: empty, configFileId: cfId };
   }
-  return localStorage.getItem(LS.joinFileId);
+  try {
+    const config = await readJsonFile<UserConfig>(token, cfId);
+    return { config: { ...config, sharedPlans: config.sharedPlans ?? [] }, configFileId: cfId };
+  } catch {
+    return { config: empty, configFileId: cfId };
+  }
 }
 
 // ============================================================
@@ -197,24 +187,27 @@ function useAuth(): AuthState {
   const [userInfo,    setUserInfo]    = useState<GoogleUser | null>(null);
   const [needsPicker, setNeedsPicker] = useState<boolean>(false);
 
-  const tokenClientRef = useRef<TokenClient | null>(null);
-  const timeoutRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeWsIdRef  = useRef<string | null>(null);
-  activeWsIdRef.current = activeWsId;
-  const fileIdRef      = useRef<string | null>(null);
-  const ownFileIdRef   = useRef<string | null>(null);
+  const tokenClientRef   = useRef<TokenClient | null>(null);
+  const timeoutRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeWsIdRef    = useRef<string | null>(null);
+  activeWsIdRef.current  = activeWsId;
+  const fileIdRef        = useRef<string | null>(null);
+  const ownFileIdRef     = useRef<string | null>(null);
+  /** File ID of user-config.json in Drive — set during bootstrapDrive */
+  const configFileIdRef  = useRef<string | null>(null);
 
   // Derived — active workspace (recalculated every render)
   const activeWorkspace = allWs.find(w => w.id === activeWsId) ?? null;
   fileIdRef.current     = activeWorkspace?.fileId ?? null;
 
   // ----------------------------------------------------------
-  // Clear session state (preserves guestPlans unless fullClear)
+  // Clear session state
   // ----------------------------------------------------------
 
-  const clearSession = useCallback((fullClear?: boolean) => {
+  const clearSession = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    _tokenRef.current = null;
+    _tokenRef.current       = null;
+    configFileIdRef.current = null;
     setSession(null);
     setIsLoading(false);
     setUserInfo(null);
@@ -227,19 +220,21 @@ function useAuth(): AuthState {
     localStorage.removeItem(LS.fileId);
     localStorage.removeItem(LS.folderId);
     localStorage.removeItem(LS.wsName);
-    localStorage.removeItem(LS.joinFileId);
     localStorage.removeItem(LS.activeWsId);
-    if (fullClear) localStorage.removeItem(LS.guestPlans);
+    // Legacy keys — clean up if present from old versions
+    localStorage.removeItem("wp_g_guest_plans");
+    localStorage.removeItem("wp_g_join_file_id");
   }, []);
 
   // ----------------------------------------------------------
   // Bootstrap own (owner) plan
+  // Returns ws + folderId so bootstrapDrive can pass folderId to ensureUserConfig
   // ----------------------------------------------------------
 
   const bootstrapOwnPlan = useCallback(async (
     token: string,
     email: string,
-  ): Promise<Workspace> => {
+  ): Promise<{ ws: Workspace; folderId: string }> => {
     let fId = localStorage.getItem(LS.folderId);
     if (!fId) {
       fId = await findOrCreateFolder(token, appConfig.googleAppFolderName);
@@ -271,7 +266,7 @@ function useAuth(): AuthState {
 
     ownFileIdRef.current = dFileId;
 
-    return {
+    const ws: Workspace = {
       id:            dFileId,
       fileId:        dFileId,
       ownerEmail:    email,
@@ -281,6 +276,7 @@ function useAuth(): AuthState {
       createdAt:     Date.now(),
       myRole:        "Właściciel",
     };
+    return { ws, folderId: fId };
   }, []);
 
   // ----------------------------------------------------------
@@ -290,63 +286,66 @@ function useAuth(): AuthState {
   const bootstrapDrive = useCallback(async (token: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     _tokenRef.current = token;
-    _tokenAge.current  = Date.now();
+    _tokenAge.current = Date.now();
     setIsLoading(true);
     setDriveError(null);
 
     try {
       const info  = await getUserInfo(token);
       const gUser: GoogleUser = { email: info.email, name: info.name, picture: info.picture };
-      // NOTE: setUserInfo early (needed for permission checks), but setSession is deferred
-      // to the very end so React batches session + workspaces in one render — no flash.
+      // NOTE: setUserInfo early (needed for avatar), but setSession is deferred to the very end
+      // so React batches session + workspaces in one render — no "Brak planu" flash.
       setUserInfo(gUser);
       localStorage.setItem(LS.email, info.email);
       localStorage.setItem(LS.name,  info.name);
 
-      // 1. Bootstrap own plan
-      const ownWs = await bootstrapOwnPlan(token, info.email);
+      // 1. Bootstrap own plan + get folderId
+      const { ws: ownWs, folderId } = await bootstrapOwnPlan(token, info.email);
 
-      // 2. Load all known guest plans from localStorage
-      const storedGuests = getGuestPlans();
+      // 2. Load user-config.json — stores fileIds of shared plans (cross-device)
+      const { config, configFileId } = await ensureUserConfig(token, folderId);
+      configFileIdRef.current = configFileId;
+
+      // 3. Load all known shared plans from user-config.json
       const loadedGuests: Workspace[] = [];
-      const failedIds: string[]       = [];
+      const failedIds:    string[]    = [];
 
-      await Promise.all(storedGuests.map(async (gp) => {
+      await Promise.all(config.sharedPlans.map(async (gFileId) => {
+        if (gFileId === ownWs.fileId) return; // skip own plan
         try {
-          const data = await readJsonFile<AppData>(token, gp.fileId);
-
-          // Re-check actual role via capabilities — works for all permission levels
-          // (listPermissions can be unreliable for readers; canEdit is authoritative).
-          let freshRole: "Edytor" | "Podgląd" = gp.role;
+          const data = await readJsonFile<AppData>(token, gFileId);
+          let role: "Edytor" | "Podgląd" = "Podgląd";
           try {
-            const caps = await getFileCapabilities(token, gp.fileId);
-            freshRole  = caps.canEdit ? "Edytor" : "Podgląd";
-          } catch { /* keep cached role if capabilities call fails */ }
-
-          if (freshRole !== gp.role) upsertGuestPlan({ ...gp, role: freshRole });
+            const caps = await getFileCapabilities(token, gFileId);
+            role = caps.canEdit ? "Edytor" : "Podgląd";
+          } catch { /* keep default */ }
 
           loadedGuests.push({
-            id:            gp.fileId,
-            fileId:        gp.fileId,
+            id:            gFileId,
+            fileId:        gFileId,
             ownerEmail:    "",
-            name:          gp.name,
+            name:          "Wspólny plan ślubny",
             data:          { ...EMPTY_DATA, ...data },
             collaborators: [],
             createdAt:     Date.now(),
-            myRole:        freshRole,
+            myRole:        role,
           });
         } catch {
-          failedIds.push(gp.fileId);
+          failedIds.push(gFileId); // access revoked or file deleted
         }
       }));
 
-      // Remove stale entries (access revoked or file deleted)
+      // Remove stale entries from user-config.json
       if (failedIds.length > 0) {
-        saveGuestPlans(storedGuests.filter(gp => !failedIds.includes(gp.fileId)));
+        const cleaned: UserConfig = {
+          sharedPlans: config.sharedPlans.filter(id => !failedIds.includes(id)),
+        };
+        updateJsonFile(token, configFileId, cleaned).catch(() => {});
       }
 
-      // 2b. Auto-discover new shared plans (no join link needed).
-      // Finds wedding-data.json files shared with the user that aren't already loaded.
+      // 4. Auto-discover new shared plans via Drive search (no join link needed).
+      //    Finds wedding-data.json files accessible to the user that aren't already loaded.
+      const newlyDiscovered: string[] = [];
       try {
         const sharedFiles = await listSharedFiles(token, DATA_FILE);
         await Promise.all(sharedFiles.map(async (sf) => {
@@ -355,6 +354,7 @@ function useAuth(): AuthState {
             loadedGuests.some(g => g.fileId === sf.id) ||
             failedIds.includes(sf.id);
           if (alreadyKnown) return;
+
           try {
             const data = await readJsonFile<AppData>(token, sf.id);
             let role: "Edytor" | "Podgląd" = "Podgląd";
@@ -362,7 +362,8 @@ function useAuth(): AuthState {
               const caps = await getFileCapabilities(token, sf.id);
               role = caps.canEdit ? "Edytor" : "Podgląd";
             } catch { /* keep default */ }
-            const ws: Workspace = {
+
+            loadedGuests.push({
               id:            sf.id,
               fileId:        sf.id,
               ownerEmail:    "",
@@ -371,73 +372,27 @@ function useAuth(): AuthState {
               collaborators: [],
               createdAt:     Date.now(),
               myRole:        role,
-            };
-            loadedGuests.push(ws);
-            upsertGuestPlan({ fileId: sf.id, name: ws.name, role });
+            });
+            newlyDiscovered.push(sf.id);
           } catch { /* file not readable — skip */ }
         }));
       } catch { /* listSharedFiles failed — non-critical */ }
 
-      // 3. Handle ?join= param
-      const joinFileId     = readJoinParam();
-      const alreadyLoaded  = joinFileId
-        ? loadedGuests.some(w => w.fileId === joinFileId)
-        : false;
-
-      if (joinFileId && !alreadyLoaded) {
-        // Try direct access — works with drive scope (shared files are accessible).
-        try {
-          const data = await readJsonFile<AppData>(token, joinFileId);
-
-          // Determine actual role via capabilities (authoritative, works for all levels)
-          let joinRole: "Edytor" | "Podgląd" = "Podgląd";
-          try {
-            const caps = await getFileCapabilities(token, joinFileId);
-            joinRole   = caps.canEdit ? "Edytor" : "Podgląd";
-          } catch { /* keep default */ }
-
-          const newWs: Workspace = {
-            id:            joinFileId,
-            fileId:        joinFileId,
-            ownerEmail:    "",
-            name:          "Wspólny plan ślubny",
-            data:          { ...EMPTY_DATA, ...data },
-            collaborators: [],
-            createdAt:     Date.now(),
-            myRole:        joinRole,
-          };
-          loadedGuests.push(newWs);
-          upsertGuestPlan({ fileId: joinFileId, name: newWs.name, role: joinRole });
-          localStorage.removeItem(LS.joinFileId);
-        } catch {
-          // No direct access — must use Picker (first-time join).
-          // Set session atomically with workspaces to avoid intermediate "Brak planu" render.
-          const allWorkspaces = [ownWs, ...loadedGuests];
-          setSession(info.email);
-          setAllWs(allWorkspaces);
-          setActiveWsId(ownWs.id);  // own plan stays in background while picker is shown
-          setNeedsPicker(true);
-          setIsLoading(false);
-          return;
-        }
-      } else if (joinFileId && alreadyLoaded) {
-        localStorage.removeItem(LS.joinFileId);
+      // Persist newly discovered plans to user-config.json
+      if (newlyDiscovered.length > 0) {
+        const existingIds = config.sharedPlans.filter(id => !failedIds.includes(id));
+        const allIds = [...new Set([...existingIds, ...newlyDiscovered])];
+        updateJsonFile(token, configFileId, { sharedPlans: allIds }).catch(() => {});
       }
 
-      // 4. Build final workspace list + activate.
-      // setSession is called here (not earlier) so React 18 batches all three
-      // state updates in one render — eliminates the "Brak planu" flash.
+      // 5. Build final workspace list + activate.
+      // setSession called last so React 18 batches all state updates → no intermediate flash.
       const allWorkspaces = [ownWs, ...loadedGuests];
-      const joinWs = joinFileId
-        ? loadedGuests.find(w => w.fileId === joinFileId)
-        : null;
 
       // Restore the last active workspace (persisted across refreshes).
-      // Priority: explicit ?join= link > saved preference > own plan.
       const savedActiveId = localStorage.getItem(LS.activeWsId);
-      const restoredWs = joinWs ??
-        (savedActiveId ? allWorkspaces.find(w => w.id === savedActiveId) : null) ??
-        ownWs;
+      const restoredWs    = (savedActiveId ? allWorkspaces.find(w => w.id === savedActiveId) : null)
+                            ?? ownWs;
 
       setSession(info.email);
       setAllWs(allWorkspaces);
@@ -458,8 +413,6 @@ function useAuth(): AuthState {
 
   useEffect(() => {
     if (!appConfig.googleClientId) { setIsLoading(false); return; }
-
-    readJoinParam(); // capture ?join= early
 
     const hadSession = !!localStorage.getItem(LS.email);
 
@@ -498,7 +451,7 @@ function useAuth(): AuthState {
 
   /**
    * Called after collaborator selects a shared file via Google Picker.
-   * Saves the file to guest plans and makes it the active workspace.
+   * Saves the fileId to user-config.json so it's remembered across devices.
    */
   const loadGuestFile = useCallback(async (pickedFileId: string) => {
     const t = _tokenRef.current;
@@ -508,13 +461,11 @@ function useAuth(): AuthState {
     try {
       const data = await readJsonFile<AppData>(t, pickedFileId);
 
-      // Try to check actual Drive permission role (non-critical)
       let role: "Edytor" | "Podgląd" = "Edytor";
       try {
-        const perms  = await listPermissions(t, pickedFileId);
-        const myPerm = perms.find(p => p.emailAddress === userInfo?.email);
-        if (myPerm?.role === "reader") role = "Podgląd";
-      } catch { /* ignore */ }
+        const caps = await getFileCapabilities(t, pickedFileId);
+        role = caps.canEdit ? "Edytor" : "Podgląd";
+      } catch { /* keep default */ }
 
       const ws: Workspace = {
         id:            pickedFileId,
@@ -527,10 +478,18 @@ function useAuth(): AuthState {
         myRole:        role,
       };
 
-      upsertGuestPlan({ fileId: pickedFileId, name: ws.name, role });
-      localStorage.removeItem(LS.joinFileId);
-
-      setAllWs(prev => [...prev.filter(w => w.id !== pickedFileId), ws]);
+      setAllWs(prev => {
+        // Persist newly picked plan to user-config.json (cross-device)
+        if (configFileIdRef.current) {
+          const guestIds = prev
+            .filter(w => w.myRole !== "Właściciel" && w.id !== pickedFileId)
+            .map(w => w.fileId);
+          updateJsonFile(t, configFileIdRef.current, {
+            sharedPlans: [...guestIds, pickedFileId],
+          }).catch(() => {});
+        }
+        return [...prev.filter(w => w.id !== pickedFileId), ws];
+      });
       setActiveWsId(pickedFileId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -539,12 +498,12 @@ function useAuth(): AuthState {
     } finally {
       setIsLoading(false);
     }
-  }, [userInfo]);
+  }, []);
 
   const logout = useCallback(() => {
     const t = _tokenRef.current;
     if (t) { try { window.google?.accounts?.oauth2?.revoke(t, () => {}); } catch {} }
-    clearSession(true); // fullClear = true removes guestPlans too
+    clearSession();
   }, [clearSession]);
 
   const updateActiveData = useCallback((data: AppData): void => {
@@ -561,15 +520,11 @@ function useAuth(): AuthState {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("403")) {
         // Drive rejected write — owner likely changed role to reader.
-        // Re-fetch permissions and downgrade in state + localStorage.
         try {
           const caps = await getFileCapabilities(t, fid);
           if (!caps.canEdit) {
             setAllWs(prev => prev.map(w =>
               w.id === wsId ? { ...w, myRole: "Podgląd" } : w,
-            ));
-            saveGuestPlans(getGuestPlans().map(p =>
-              p.fileId === fid ? { ...p, role: "Podgląd" } : p,
             ));
           }
         } catch { /* ignore — best-effort */ }
@@ -585,15 +540,13 @@ function useAuth(): AuthState {
     setAllWs(prev => prev.map(w => w.id === wsId ? { ...w, name } : w));
     if (wsId === ownFileIdRef.current) {
       localStorage.setItem(LS.wsName, name);
-    } else if (wsId) {
-      saveGuestPlans(getGuestPlans().map(p => p.fileId === wsId ? { ...p, name } : p));
     }
+    // Guest plan names are ephemeral (in-memory only); user-config.json stores fileIds, not names.
   }, []);
 
   const switchWorkspace = useCallback((wsId: string) => {
     setActiveWsId(wsId);
     setNeedsPicker(false);
-    localStorage.removeItem(LS.joinFileId);
     localStorage.setItem(LS.activeWsId, wsId); // persist choice across refreshes
 
     // Async role refresh — capabilities API is authoritative (works for all roles)
@@ -603,9 +556,6 @@ function useAuth(): AuthState {
       const freshRole: "Edytor" | "Podgląd" = caps.canEdit ? "Edytor" : "Podgląd";
       setAllWs(prev => prev.map(w =>
         w.id === wsId ? { ...w, myRole: freshRole } : w,
-      ));
-      saveGuestPlans(getGuestPlans().map(p =>
-        p.fileId === wsId ? { ...p, role: freshRole } : p,
       ));
     }).catch(() => { /* silent */ });
   }, []);
@@ -651,7 +601,7 @@ function useAuth(): AuthState {
 
 // ============================================================
 // PICKER SCREEN
-// Shown when a collaborator needs to pick a shared file.
+// Fallback shown when a collaborator needs to pick a shared file manually.
 // ============================================================
 
 export function PickerScreen({ auth }: { auth: AuthState }) {
@@ -662,8 +612,7 @@ export function PickerScreen({ auth }: { auth: AuthState }) {
     const t          = _tokenRef.current;
     const tokenAgeMs = Date.now() - _tokenAge.current;
     if (!t || tokenAgeMs > 55 * 60 * 1000) {
-      // Token expired (GIS tokens last ~1h) — user must re-authenticate
-      setError("Sesja wygasła — wyloguj się i zaloguj ponownie, potem otwórz link zaproszenia raz jeszcze.");
+      setError("Sesja wygasła — wyloguj się i zaloguj ponownie.");
       return;
     }
     if (!appConfig.googlePickerApiKey) {
@@ -684,7 +633,6 @@ export function PickerScreen({ auth }: { auth: AuthState }) {
     }
   };
 
-  // Find the user's own plan so they can switch back without reloading
   const ownWs = auth.myWorkspaces.find(w => w.myRole === "Właściciel");
 
   return (
@@ -693,10 +641,8 @@ export function PickerScreen({ auth }: { auth: AuthState }) {
         <div className="auth__eyebrow">— Planner ślubny —</div>
         <h1 className="auth__title">Otwórz <em>wspólny plan</em></h1>
         <p className="auth__sub">
-          Zalogowałeś się przez link zaproszenia.<br />
-          Właściciel planu musiał już wcześniej{" "}
-          <strong>zaprosić Cię przez email</strong> — wtedy plik pojawi się w Twoim Google Drive.
-          Kliknij poniżej i wybierz <code>wedding-data.json</code>.
+          Właściciel planu musiał wcześniej <strong>zaprosić Cię przez email</strong> — wtedy plik
+          pojawi się w Twoim Google Drive. Kliknij poniżej i wybierz <code>wedding-data.json</code>.
         </p>
         {error && <div className="auth__error" style={{ marginBottom: 16 }}>{error}</div>}
         <button
@@ -706,7 +652,7 @@ export function PickerScreen({ auth }: { auth: AuthState }) {
         >
           {picking ? "Otwieranie…" : "Wybierz plik z Google Drive"}
         </button>
-        {ownWs && (
+        {ownWs ? (
           <button
             className="btn"
             style={{ marginTop: 10, width: "100%" }}
@@ -714,15 +660,11 @@ export function PickerScreen({ auth }: { auth: AuthState }) {
           >
             Wróć do swojego planu
           </button>
-        )}
-        {!ownWs && (
+        ) : (
           <button
             className="btn"
             style={{ marginTop: 10, width: "100%" }}
-            onClick={() => {
-              localStorage.removeItem(LS.joinFileId);
-              window.location.reload();
-            }}
+            onClick={() => window.location.reload()}
           >
             Wróć do swojego planu
           </button>
@@ -825,11 +767,6 @@ const InviteModal = React.memo(function InviteModal({ auth, onClose }: InviteMod
   const [permissions,  setPermissions]  = useState<DrivePermission[] | null>(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
   const [updatingPerm, setUpdatingPerm] = useState<string | null>(null);
-  const [copied,       setCopied]       = useState(false);
-
-  const inviteLink = fileId
-    ? `${window.location.origin}${window.location.pathname}?join=${fileId}`
-    : null;
 
   // Load collaborator list on mount — only depends on stable values
   useEffect(() => {
@@ -844,7 +781,7 @@ const InviteModal = React.memo(function InviteModal({ auth, onClose }: InviteMod
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount — fileId is stable for the lifetime of this modal
 
-  // Invite via Drive API — PRIMARY action
+  // Invite via Drive API — sends email automatically
   const handleInvite = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fileId || !_tokenRef.current) {
@@ -856,7 +793,7 @@ const InviteModal = React.memo(function InviteModal({ auth, onClose }: InviteMod
       await shareFile(_tokenRef.current, fileId, email.trim(), role);
       setSendSuccess(
         `Zaproszono ${email.trim()} — dostali email od Google z dostępem do pliku.` +
-        ` Teraz wyślij im też link zaproszenia poniżej.`,
+        ` Zobaczy Twój plan po zalogowaniu się do planera.`,
       );
       setEmail("");
       // Refresh permissions list
@@ -893,13 +830,6 @@ const InviteModal = React.memo(function InviteModal({ auth, onClose }: InviteMod
     setPermissions(prev => prev ? prev.filter(p => p.id !== permId) : prev);
   }, [fileId]);
 
-  const copyLink = useCallback(() => {
-    if (!inviteLink) return;
-    navigator.clipboard.writeText(inviteLink).then(() => {
-      setCopied(true); setTimeout(() => setCopied(false), 2500);
-    });
-  }, [inviteLink]);
-
   if (!ws) return null;
 
   return (
@@ -932,15 +862,14 @@ const InviteModal = React.memo(function InviteModal({ auth, onClose }: InviteMod
           </div>
         </div>
 
-        {/* OWNER: invite form + link + collaborators list */}
+        {/* OWNER: invite form + collaborators list */}
         {isOwner && (
           <>
-            {/* PRIMARY: invite by email */}
             <div style={{ marginTop: 20 }}>
               <div className="ornament">Zaproś osobę</div>
               <p className="muted" style={{ fontSize: 12, margin: "6px 0 10px" }}>
-                Osoba dostanie email od Google z dostępem do pliku.
-                Następnie wyślij jej link zaproszenia, żeby wiedziała gdzie go otworzyć.
+                Osoba dostanie email od Google z dostępem do pliku i zobaczy plan automatycznie
+                po zalogowaniu się do planera.
               </p>
               <form onSubmit={handleInvite} className="invite__form">
                 <div className="invite__row">
@@ -980,29 +909,6 @@ const InviteModal = React.memo(function InviteModal({ auth, onClose }: InviteMod
                 </button>
               </form>
             </div>
-
-            {/* SECONDARY: copy invite link */}
-            {inviteLink && (
-              <div style={{ marginTop: 14, padding: "12px 14px", background: "var(--bg-alt, rgba(0,0,0,.04))", borderRadius: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
-                  Link zaproszenia
-                </div>
-                <p className="muted" style={{ fontSize: 11, margin: "0 0 8px" }}>
-                  Wyślij <strong>po zaproszeniu przez email</strong> — osoba klika, loguje się i gotowe.
-                </p>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    className="auth__input"
-                    readOnly
-                    value={inviteLink}
-                    style={{ flex: 1, fontSize: 10 }}
-                  />
-                  <button className="btn" onClick={copyLink} style={{ whiteSpace: "nowrap" }}>
-                    {copied ? <><Icon name="check" size={14} /> Skopiowano</> : "Kopiuj"}
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Collaborators list with role change */}
             <div style={{ marginTop: 20 }}>
@@ -1066,8 +972,6 @@ const InviteModal = React.memo(function InviteModal({ auth, onClose }: InviteMod
                   auth.switchWorkspace(ownWs.id);
                   onClose();
                 } else {
-                  removeGuestPlan(auth.fileId!);
-                  localStorage.removeItem(LS.joinFileId);
                   window.location.reload();
                 }
               }}
@@ -1127,6 +1031,9 @@ function UserMenu({ auth, onInviteClick }: UserMenuProps) {
     return () => document.removeEventListener("click", onDoc);
   }, [open]);
 
+  const activeWs    = auth.activeWorkspace;
+  const hasMultiple = auth.myWorkspaces.length > 1;
+
   return (
     <div className="user-menu">
       <button className="user-menu__trigger" onClick={() => setOpen(!open)} title={user.email}>
@@ -1140,6 +1047,7 @@ function UserMenu({ auth, onInviteClick }: UserMenuProps) {
       </button>
       {open && (
         <div className="user-menu__pop">
+          {/* User info */}
           <div className="user-menu__user">
             {user.picture
               ? <img src={user.picture} alt={user.name} className="avatar"
@@ -1157,6 +1065,33 @@ function UserMenu({ auth, onInviteClick }: UserMenuProps) {
             </div>
           </div>
           <div className="user-menu__div" />
+
+          {/* Workspace switcher — shown only when user has access to multiple plans */}
+          {hasMultiple && (
+            <>
+              <div className="user-menu__section-label">Twoje plany</div>
+              {auth.myWorkspaces.map(ws => {
+                const wsFull  = ws as Workspace;
+                const isActive = activeWs?.id === ws.id;
+                const roleLabel = wsFull.myRole === "Właściciel" ? "Wł" : wsFull.myRole === "Edytor" ? "Ed" : "Pp";
+                return (
+                  <button
+                    key={ws.id}
+                    className={"user-menu__item" + (isActive ? " user-menu__item--active" : "")}
+                    onClick={() => { auth.switchWorkspace(ws.id); setOpen(false); }}
+                  >
+                    <span className="user-menu__ws-role">{roleLabel}</span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                      {ws.name}
+                    </span>
+                    {isActive && <Icon name="check" size={12} />}
+                  </button>
+                );
+              })}
+              <div className="user-menu__div" />
+            </>
+          )}
+
           <button className="user-menu__item" onClick={() => { onInviteClick(); setOpen(false); }}>
             <Icon name="plus" size={14} /> Zaproś / Współpraca
           </button>

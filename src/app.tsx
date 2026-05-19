@@ -24,23 +24,25 @@ type PlannerPageProps = {
   editing: boolean;
 };
 
+// Wrapped in React.memo so page components don't re-render when inviteOpen
+// or other PlannerApp-level state changes that don't affect page props.
 const PAGE_COMPONENTS: Record<string, React.ComponentType<PlannerPageProps>> = {
-  dashboard: PageDashboard,
-  tasks: PageTasks,
-  events: PageEvents,
-  budget: PageBudget,
-  payments: PagePayments,
-  guests: PageGuests,
-  tables: PageTables,
-  vendors: PageVendors,
-  schedule: PageSchedule,
-  menu: PageMenu,
-  music: PageMusic,
-  outfits: PageOutfits,
-  documents: PageDocuments,
-  inspiration: PageInspiration,
-  gifts: PageGifts,
-  honeymoon: PageHoneymoon,
+  dashboard:   React.memo(PageDashboard),
+  tasks:       React.memo(PageTasks),
+  events:      React.memo(PageEvents),
+  budget:      React.memo(PageBudget),
+  payments:    React.memo(PagePayments),
+  guests:      React.memo(PageGuests),
+  tables:      React.memo(PageTables),
+  vendors:     React.memo(PageVendors),
+  schedule:    React.memo(PageSchedule),
+  menu:        React.memo(PageMenu),
+  music:       React.memo(PageMusic),
+  outfits:     React.memo(PageOutfits),
+  documents:   React.memo(PageDocuments),
+  inspiration: React.memo(PageInspiration),
+  gifts:       React.memo(PageGifts),
+  honeymoon:   React.memo(PageHoneymoon),
 };
 
 const ROUTE_KEY = "wedding-planner-route-v1";
