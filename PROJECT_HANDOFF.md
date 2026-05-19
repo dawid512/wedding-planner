@@ -341,7 +341,7 @@ Wniosek:
 7. ~~**Lista Gości — uproszczenie**~~ ✅ ZROBIONE (2026-05-19) — `plusone`, `needsTransport`, `giftReceived` usunięte z `Guest` interface, `EMPTY_DATA` i `addGuest`.
 8. ~~**Lista Gości — parowanie gości**~~ ✅ ZROBIONE (2026-05-19) — `partnerId?: string` w `Guest`, `pair`/`unpair`, `buildOrderedGuests`, badge ↔, plan stołów też.
 9. ~~**Plan stołów — domyślny stół pary młodej**~~ ✅ ZROBIONE (2026-05-19) — stół "Para Młoda" capacity 2, guests: ["g1","g2"].
-10. **Menu boczne** — usunąć z sidebar: "Współedytorzy · 1" i "Zaproś osobę". Zarządzanie dostępem zostaje tylko w UserMenu (avatar).
+10. ~~**Menu boczne**~~ ✅ ZROBIONE (2026-05-19) — usunięto blok "Współedytorzy" + "Zaproś osobę" z sidebar i dead code `activeCollab`/`collabCount`.
 11. **Obsługa zdjęć i grafik** — upload do folderu na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać file ID lub URL (nie base64, nie blob). Strategia: każdy user uploaduje do swojego `WeddingPlanner/attachments/`; linki współdzielone przez permissions Drive.
 12. **Domyślny plan przy starcie** — checkbox w ustawieniach: "Otwieraj domyślnie ten plan" (zapamiętany w `user-config.json`). Przy bootstrapDrive jeśli ustawiony — aktywować wskazany plan zamiast własnego.
 13. **RODO / cookies / zgody** — banner cookies, link do Privacy Policy, obsługa `localStorage` tylko po zgodzie, polityka przechowywania danych (wymagane przez Google OAuth verification).
@@ -438,6 +438,13 @@ Wniosek:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (TODO #10: Sidebar — usunięto Współedytorzy i Zaproś)
+
+1. Usunięto z `src/app.tsx` sidebar sekcję: `<div>Współedytorzy · {collabCount}</div>`, avatar-stack oraz przycisk "Zaproś osobę".
+2. Usunięto dead code: `activeCollab` i `collabCount` (nie używane nigdzie indziej).
+3. Przycisk "Zaproś" w topbarze (desktop + mobile) pozostaje bez zmian — tylko dla właściciela.
+4. `npm run typecheck` — 0 błędów.
 
 ### 2026-05-19 (TODO #6 + #9: Domyślny stół pary młodej)
 
