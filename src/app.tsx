@@ -248,13 +248,6 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
     return grouped;
   }, []);
 
-  const activeCollab = [
-    { email: ws.ownerEmail, role: "Właściciel" },
-    ...(ws.collaborators || [])
-      .filter((c) => c.status === "Aktywny")
-      .map((c) => ({ email: c.email, role: c.role })),
-  ];
-  const collabCount = activeCollab.length;
 
   // Multiple workspaces — shown in sidebar switcher
   const multipleWs = auth.myWorkspaces.length > 1;
@@ -326,35 +319,6 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
           </div>
         )}
 
-        <div style={{ marginTop: multipleWs ? 0 : "auto", padding: "16px 28px", borderTop: "1px solid var(--line-soft)" }}>
-          <div className="brand__meta" style={{ marginTop: 0, marginBottom: 10 }}>
-            Współedytorzy · {collabCount}
-          </div>
-          <div className="avatar-stack">
-            {activeCollab.slice(0, 6).map((collaborator) => (
-              <span
-                key={collaborator.email}
-                className="avatar avatar--sm"
-                style={{ background: avatarColor(collaborator.email) }}
-                title={collaborator.email + " · " + collaborator.role}
-              >
-                {authInitials(null, collaborator.email)}
-              </span>
-            ))}
-            {collabCount > 6 && (
-              <span className="avatar avatar--sm" style={{ background: "var(--line)" }}>+{collabCount - 6}</span>
-            )}
-          </div>
-          {auth.myRole === "Właściciel" && (
-            <button
-              className="btn btn--small mt-8"
-              style={{ width: "100%", marginTop: 12, borderStyle: "dashed" }}
-              onClick={() => setInviteOpen(true)}
-            >
-              <Icon name="plus" size={12} /> Zaproś osobę
-            </button>
-          )}
-        </div>
       </aside>
 
       <main className="main">

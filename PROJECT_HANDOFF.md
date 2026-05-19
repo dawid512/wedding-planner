@@ -209,10 +209,10 @@ Wniosek:
 10. `src/core.tsx`
     dane startowe, helpery, komponenty bazowe, typy domenowe (zmigrowany do TS)
 11. `src/pages/` — **aktualny katalog stron** (od 2026-05-19):
-    - `_shared.tsx` — PageHeader
+    - `_shared.tsx` — PageHeader, DateInput (komponent daty z przyciskiem × do czyszczenia)
     - `index.ts` — barrel re-export
     - `dashboard.tsx`, `tasks.tsx`, `budget.tsx`, `guests.tsx`, `tables.tsx`, `vendors.tsx`, `schedule.tsx`, `menu.tsx`, `outfits.tsx`, `inspiration.tsx`, `gifts.tsx`, `honeymoon.tsx`, `events.tsx`, `music.tsx`, `documents.tsx`, `payments.tsx`
-    - `pages-1.tsx` / `pages-2.tsx` / `pages-3.tsx` — DEPRECATED, nie importowane, do ręcznego usunięcia
+    - `pages-1.tsx` / `pages-2.tsx` / `pages-3.tsx` — USUNIĘTE (usunął użytkownik 2026-05-19)
 12. `CODEBASE.md` — mapa kodu dla agenta AI (struktura plików, typy, flow zapisu, jak dodać stronę)
 14. `src/tweaks-panel.tsx`
     panel tweakow (zmigrowany do TS)
@@ -332,17 +332,18 @@ Wniosek:
 ### Priorytety od właściciela (lista od 2026-05-19)
 
 1. ~~**Refaktoryzacja i nawigacja po kodzie**~~ ✅ ZROBIONE (2026-05-19) — `src/pages/` (16 komponentów stron + `_shared.tsx` + `index.ts`), `CODEBASE.md`, `app.tsx` importuje z `./pages`, typecheck 0 błędów. `pages-1/2/3.tsx` — deprecated, usunąć ręcznie.
+2. ~~**UI / mobile**~~ ✅ ZROBIONE (2026-05-19) — tabele scrollują poziomo w kartach (nie wylewają poza stronę), `overflow-x: hidden` na `html/body/main`, touch-targety ≥ 44px, task-lista wrappuje ≤640px, KPI 2-kolumny na telefonie, hero kompaktowy, modal bottom-sheet ≤480px, `.mb-24` utility.
 2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze). Sprawdzić breakpointy, inputy, modalne na małych ekranach.
-3. **Pola daty na telefonie** — na mobilnym nie da się wyczyścić zawartości pola `<input type="date">`; dodać przycisk `×` w trybie edycji obok każdego pola daty (widoczny tylko gdy pole ma wartość i `editing === true`).
+3. ~~**Pola daty na telefonie**~~ ✅ ZROBIONE (2026-05-19) — `DateInput` w `_shared.tsx` z przyciskiem `×`; zaktualizowane: `dashboard.tsx`, `tasks.tsx`, `payments.tsx`, `events.tsx`, `documents.tsx`.
 4. **Fix blokady edycji (KRYTYCZNY)** — nadal 2 użytkowników może edytować naraz. Obecna implementacja write-then-verify (350 ms delay) nie działa w praktyce. Wymaga innego podejścia — np. oddzielny plik `wedding-lock.json` lub polling przed edycją.
-5. **Strona Budżet — koszty automatyczne** — dodać statyczną (poza trybem edycji) sekcję "Sala weselna · goście" pokazującą sumę kosztów z kalkulatora z strony Lista Gości. Tak samo dla pozycji Stroje — auto-sumowanie z strony Stroje. Poprawić etykietę "auto · z Stroje" → czytelny tooltip / opis źródła danych.
-6. **Lista Gości — domyślne dane startowe** — przy pierwszym uruchomieniu (pusta lista) defaultowo tworzyć: stół "Para Młoda" z 2 osobami (Pan Młody, Pani Młoda), potem standardowe "Stół 1", "Stół 2" itd. jako sugestia.
-7. **Lista Gości — uproszczenie** — usunąć kolumny/checkboxy: `+1`, transport, prezent. Odchudzić widok.
-8. **Lista Gości — parowanie gości** — dodać opcję "Dodaj partnera" łączącą dwie osoby w parę. Pary wyświetlane jeden pod drugim. Para traktowana jako jednostka przy przydziale do stołów.
-9. **Plan stołów — domyślny stół pary młodej** — domyślnie przypisać Pan Młody + Pani Młoda do stołu "Para Młoda" (2-osobowy). Spójne z domyślnymi danymi z pkt 6.
-10. **Menu boczne** — usunąć z sidebar: "Współedytorzy · 1" i "Zaproś osobę". Zarządzanie dostępem zostaje tylko w UserMenu (avatar).
+5. ~~**Strona Budżet — koszty automatyczne**~~ ✅ ZROBIONE (2026-05-19) — `calcVenueCosts()` w `core.tsx`; auto-wiersz "Sala weselna" w `budget.tsx`; wliczony do sum `plannedAll`/`actualAll`.
+6. ~~**Lista Gości — domyślne dane startowe**~~ ✅ ZROBIONE (2026-05-19) — g1 "Panna Młoda" + g2 "Pan Młody", RSVP Potwierdzony, sparowane ze sobą.
+7. ~~**Lista Gości — uproszczenie**~~ ✅ ZROBIONE (2026-05-19) — `plusone`, `needsTransport`, `giftReceived` usunięte z `Guest` interface, `EMPTY_DATA` i `addGuest`.
+8. ~~**Lista Gości — parowanie gości**~~ ✅ ZROBIONE (2026-05-19) — `partnerId?: string` w `Guest`, `pair`/`unpair`, `buildOrderedGuests`, badge ↔, plan stołów też.
+9. ~~**Plan stołów — domyślny stół pary młodej**~~ ✅ ZROBIONE (2026-05-19) — stół "Para Młoda" capacity 2, guests: ["g1","g2"].
+10. ~~**Menu boczne**~~ ✅ ZROBIONE (2026-05-19) — usunięto blok "Współedytorzy" + "Zaproś osobę" z sidebar i dead code `activeCollab`/`collabCount`.
 11. **Obsługa zdjęć i grafik** — upload do folderu na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać file ID lub URL (nie base64, nie blob). Strategia: każdy user uploaduje do swojego `WeddingPlanner/attachments/`; linki współdzielone przez permissions Drive.
-12. **Domyślny plan przy starcie** — checkbox w ustawieniach: "Otwieraj domyślnie ten plan" (zapamiętany w `user-config.json`). Przy bootstrapDrive jeśli ustawiony — aktywować wskazany plan zamiast własnego.
+12. ~~**Domyślny plan przy starcie**~~ ✅ ZROBIONE (2026-05-19) — `defaultPlanId` w `UserConfig`, `setDefaultPlan()`, ★ w UserMenu, priorytet bootstrap.
 13. **RODO / cookies / zgody** — banner cookies, link do Privacy Policy, obsługa `localStorage` tylko po zgodzie, polityka przechowywania danych (wymagane przez Google OAuth verification).
 14. **Weryfikacja Google OAuth** — lista wymagań: hosted Privacy Policy URL, Terms of Service URL, opis zakresu `drive` w formularzu weryfikacji, ograniczenie scope do minimum (rozważyć powrót do `drive.file`), brand verification.
 
@@ -437,6 +438,73 @@ Wniosek:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (TODO #12: Domyślny plan przy starcie)
+
+1. `UserConfig` interface — dodano `defaultPlanId?: string` (przechowywane w `user-config.json` na Drive użytkownika).
+2. `AuthState` — dodano `setDefaultPlan(wsId: string | null): void` i `defaultPlanId: string | null`.
+3. `useAuth` — dodano `configRef` (przechowuje bieżący config w pamięci), `defaultPlanId` state.
+4. `bootstrapDrive` — po załadowaniu config: zapisuje do `configRef`, aktualizuje `defaultPlanId` state; priorytet aktywacji: `config.defaultPlanId` > `savedActiveId` > `ownWs`.
+5. `setDefaultPlan(wsId)` — aktualizuje `configRef.current.defaultPlanId`, ustawia state i zapisuje do Drive asynchronicznie (silent fail).
+6. `UserMenu` — przy każdym workspace dodano przycisk ★ z tooltipem: gdy ustawiony jako domyślny → kolor `var(--accent)` i odznacza; gdy nie → kliknięcie ustawia; wewnątrz itemu badge ★ pomarańczowy gdy domyślny.
+7. `npm run typecheck` — 0 błędów.
+
+### 2026-05-19 (TODO #10: Sidebar — usunięto Współedytorzy i Zaproś)
+
+1. Usunięto z `src/app.tsx` sidebar sekcję: `<div>Współedytorzy · {collabCount}</div>`, avatar-stack oraz przycisk "Zaproś osobę".
+2. Usunięto dead code: `activeCollab` i `collabCount` (nie używane nigdzie indziej).
+3. Przycisk "Zaproś" w topbarze (desktop + mobile) pozostaje bez zmian — tylko dla właściciela.
+4. `npm run typecheck` — 0 błędów.
+
+### 2026-05-19 (TODO #6 + #9: Domyślny stół pary młodej)
+
+1. `EMPTY_DATA.guests`: g1 name→"Panna Młoda", rsvp→"Potwierdzony", partnerId→"g2"; g2 name→"Pan Młody", rsvp→"Potwierdzony", partnerId→"g1".
+2. `EMPTY_DATA.tables`: table1 name→"Para Młoda", capacity→2, guests→["g1","g2"]; pozostałe 3 stoły bez zmian (8 miejsc, puste).
+3. Nowi użytkownicy widzą od razu parę młodą na liście gości (RSVP Potwierdzony, sparowaną) oraz stół "Para Młoda" z 2 miejscami w planie stołów.
+4. Istniejący użytkownicy (dane w Drive) — bez zmian.
+5. `npm run typecheck` — 0 błędów.
+
+### 2026-05-19 (TODO #8: Goście — parowanie)
+
+1. Dodano `partnerId?: string` do `Guest` interface w `src/core.tsx` (bidirektywne — oba goście mają nawzajem swoje ID).
+2. `buildOrderedGuests(guests)` — helper w `guests.tsx` sortujący pary razem w obrębie grupy; partner pojawia się bezpośrednio po swoim gościu.
+3. `pair(idA, idB)` — ustawia `partnerId` na obu gościach atomicznie.
+4. `unpair(id)` — czyści `partnerId` na obu gościach.
+5. `removeGuest` zaktualizowany: przy usuwaniu gościa automatycznie czyści `partnerId` jego partnera.
+6. Tryb edycji: każdy gość ma przycisk "↔ Sparuj" → dropdown z listą gości bez pary (całej listy, nie tylko tej strony); po wyborze → sparowanie; jeśli już sparowany → pokazuje imię + przycisk "Rozłącz".
+7. Tryb widoku: sparowani goście mają badge "↔ [imię]" pod nazwiskiem i lekkie tło (`oklch(from var(--accent) ...)`).
+8. Plan stołów (`tables.tsx`): sparowani goście mają ikonkę "↔" z tooltipem "Para: [imię]" obok nazwiska w karciku stołu.
+9. Statystyki strony: dodano kafelek "Par" (liczba sparowanych / 2).
+10. `npm run typecheck` — 0 błędów.
+
+### 2026-05-19 (TODO #7: Goście — uproszczenie modelu)
+
+1. Usunięto `plusone: boolean`, `needsTransport: boolean`, `giftReceived: boolean` z `Guest` interface w `src/core.tsx`.
+2. Usunięto te pola z domyślnych wpisów w `EMPTY_DATA.guests`.
+3. Usunięto z `addGuest` defaults w `src/pages/guests.tsx`.
+4. Pola były obecne w modelu od początku ale nigdy nie renderowane w tabeli — czyste usunięcie, bez zmian UI.
+5. Istniejące dane w Drive (`wedding-data.json`) z tymi polami działają bez zmian (extra pola JSON są ignorowane).
+6. `npm run typecheck` — 0 błędów.
+
+### 2026-05-19 (TODO #5: Budżet — auto-row koszt sali)
+
+1. Dodano `VenueCosts` interface i `calcVenueCosts(data)` helper w `src/core.tsx` — oblicza planowany koszt sali (aktywni goście × cena talerzyka + poprawiny × cena poprawin) i zapłacone (zaliczka).
+2. `calcVenueCosts` wyeksportowany z `core.tsx`.
+3. W `src/pages/budget.tsx`: dodano import `calcVenueCosts`; `venue = calcVenueCosts(data)` wliczone do `plannedAll` i `actualAll` (gdy `venue.hasData`).
+4. Dodano auto-wiersz "Sala weselna · auto · z Lista Gości" — widoczny gdy ustawiona cena talerzyka i są aktywni goście. Wyświetla: planowany koszt, zaliczkę (= zapłacone), różnicę, status (Do opłaty / Zaliczka X% / Opłacone).
+5. Wiersz pojawia się przed wierszem Stroje, oba mają identyczny styl (`background: var(--accent-soft)`).
+6. `npm run typecheck` — 0 błędów.
+
+### 2026-05-19 (TODO #3: DateInput z przyciskiem × dla pól daty)
+
+1. Dodano komponent `DateInput` w `src/pages/_shared.tsx` — obsługuje `type: "date" | "datetime-local" | "time"`. Wyświetla przycisk `×` (clear) gdy pole ma wartość i `editing === true`. Przycisk ma touch-target 44px na mobile.
+2. Dodano style `.date-input-wrap` i `.date-clear-btn` w `src/styles.css` — wrapper jako `position: relative`, przycisk absolutnie pozycjonowany po prawej, na mobile zwiększony do 44px.
+3. Zaktualizowano `src/pages/dashboard.tsx` — data ślubu używa `DateInput`.
+4. Zaktualizowano `src/pages/tasks.tsx` — termin zadania używa `DateInput`.
+5. Zaktualizowano `src/pages/payments.tsx` — termin płatności używa `DateInput`.
+6. Zaktualizowano `src/pages/events.tsx` — datetime wydarzenia używa `DateInput` (type="datetime-local").
+7. Zaktualizowano `src/pages/documents.tsx` — data ceremonii, godzina ceremonii i daty urodzin (panna młoda / pan młody) używają `DateInput`.
+8. `npm run typecheck` — 0 błędów.
 
 ### 2026-05-19 (fix: race condition w edit lock — ETag + If-Match)
 

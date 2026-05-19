@@ -1,6 +1,6 @@
 // Budżet — kategorie, sumy, paski postępu; auto-row ze strojów
 import React from "react";
-import { Field, Icon, fmtCurrency, allOutfitTotals } from "../core";
+import { Field, Icon, fmtCurrency, allOutfitTotals, calcVenueCosts } from "../core";
 import type { AppData, PageProps } from "../core";
 import { PageHeader } from "./_shared";
 
@@ -18,8 +18,9 @@ export function PageBudget({ data, set, editing }: PageProps) {
   const planned    = data.budgetItems.reduce((s, b) => s + (parseFloat(b.planned) || 0), 0);
   const actual     = data.budgetItems.reduce((s, b) => s + (parseFloat(b.actual)  || 0), 0);
   const outfit     = allOutfitTotals(data);
-  const plannedAll = planned + outfit.planned;
-  const actualAll  = actual  + outfit.paid;
+  const venue      = calcVenueCosts(data);
+  const plannedAll = planned + outfit.planned + (venue.hasData ? venue.planned : 0);
+  const actualAll  = actual  + outfit.paid    + (venue.hasData ? venue.paid    : 0);
   const total      = parseFloat(data.budgetTotal) || 0;
   const remaining  = total ? total - actualAll : null;
   const pct        = total ? Math.min(100, Math.round((actualAll / total) * 100)) : 0;
@@ -117,6 +118,39 @@ export function PageBudget({ data, set, editing }: PageProps) {
               </tr>
             </thead>
             <tbody>
+              {/* Auto row: Sala weselna — z ustawień w Liście Gości */}
+              {venue.hasData && (
+                <tr style={{ background: "var(--accent-soft)" }}>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span className="serif-italic" style={{ fontStyle: "italic" }}>Sala weselna</span>
+                      <span className="mono" style={{ fontSize: 9, padding: "2px 6px", background: "var(--paper)", border: "1px solid var(--accent)", color: "var(--accent)", borderRadius: 100, letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                        auto · z Lista Gości
+                      </span>
+                    </div>
+                    <div className="mono muted" style={{ fontSize: 10, marginTop: 2 }}>
+                      {venue.guestCount} gości
+                      {venue.afterPartyCount > 0 && ` · ${venue.afterPartyCount} poprawiny`}
+                      {venue.deposit > 0 && ` · zaliczka ${venue.deposit.toLocaleString("pl-PL")} zł`}
+                    </div>
+                  </td>
+                  <td className="num mono">{venue.planned ? venue.planned.toLocaleString("pl-PL") + " zł" : "—"}</td>
+                  <td className="num mono">{venue.paid    ? venue.paid.toLocaleString("pl-PL")    + " zł" : "—"}</td>
+                  <td className="num mono" style={{ color: (venue.planned - venue.paid) >= 0 ? "var(--sage)" : "var(--accent)" }}>
+                    {venue.planned ? "+" + (venue.planned - venue.paid).toLocaleString("pl-PL") + " zł" : "—"}
+                  </td>
+                  <td>
+                    <span className={"tag " + (venue.paid >= venue.planned && venue.planned > 0 ? "tag--ok" : venue.paid > 0 ? "tag--warn" : "")}>
+                      {venue.paid >= venue.planned && venue.planned > 0
+                        ? "Opłacone"
+                        : venue.paid > 0
+                          ? `Zaliczka ${Math.round((venue.paid / venue.planned) * 100)}%`
+                          : "Do opłaty"}
+                    </span>
+                  </td>
+                  {editing && <td></td>}
+                </tr>
+              )}
               {/* Auto row: Stroje — sumowane z strony Stroje */}
               {outfit.total > 0 && (
                 <tr style={{ background: "var(--accent-soft)" }}>

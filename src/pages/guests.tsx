@@ -1,4 +1,4 @@
-// Lista gości — z typami, ceną talerzyka, poprawinami i kalkulatorem sali
+// Lista gości — z typami, ceną talerzyka, poprawinami, kalkulatorem sali i parowaniem
 import React from "react";
 import { Field, Check, Icon } from "../core";
 import type { AppData, PageProps, GuestType } from "../core";
@@ -38,17 +38,51 @@ function NumInput({ value, onChange, placeholder, style }: {
   );
 }
 
+/** Przesuwa partnerów tuż za sobą w obrębie danej grupy */
+function buildOrderedGuests(guests: AppData["guests"]): AppData["guests"] {
+  const visited = new Set<string>();
+  const result: AppData["guests"][number][] = [];
+  for (const g of guests) {
+    if (visited.has(g.id)) continue;
+    result.push(g);
+    visited.add(g.id);
+    if (g.partnerId) {
+      const partner = guests.find(x => x.id === g.partnerId);
+      if (partner && !visited.has(partner.id)) {
+        result.push(partner);
+        visited.add(partner.id);
+      }
+    }
+  }
+  return result;
+}
+
 export function PageGuests({ data, set, editing }: PageProps) {
+  const [pairingFor, setPairingFor] = React.useState<string | null>(null);
+
   const vs  = data.venueSettings ?? { platePrice: "", afterPartyPlatePrice: "", deposit: "" };
   const pp  = parseFloat(vs.platePrice) || 0;
   const app = parseFloat(vs.afterPartyPlatePrice) || 0;
   const dep = parseFloat(vs.deposit) || 0;
 
+  // mapa id → gość (do szybkiego wyszukiwania partnerów)
+  const guestById: Record<string, AppData["guests"][number]> = {};
+  data.guests.forEach(g => { guestById[g.id] = g; });
+
   const addGuest = (side: GuestSide) => set((d: AppData) => ({
     ...d,
-    guests: [...d.guests, { id: "g" + Date.now(), name: "", side, rsvp: "Czeka", diet: "", plusone: false, guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, needsTransport: false, giftReceived: false, poprawiny: false }],
+    guests: [...d.guests, { id: "g" + Date.now(), name: "", side, rsvp: "Czeka", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false }],
   }));
-  const removeGuest = (id: string) => set((d: AppData) => ({ ...d, guests: d.guests.filter(g => g.id !== id) }));
+  const removeGuest = (id: string) => set((d: AppData) => {
+    const g = d.guests.find(x => x.id === id);
+    const pid = g?.partnerId;
+    return {
+      ...d,
+      guests: d.guests
+        .filter(x => x.id !== id)
+        .map(x => x.id === pid ? { ...x, partnerId: undefined } : x),
+    };
+  });
   const updateGuest = (id: string, patch: Partial<AppData["guests"][number]>) => set((d: AppData) => ({
     ...d,
     guests: d.guests.map(g => g.id === id ? { ...g, ...patch } : g),
@@ -58,6 +92,32 @@ export function PageGuests({ data, set, editing }: PageProps) {
     venueSettings: { ...(d.venueSettings ?? { platePrice: "", afterPartyPlatePrice: "", deposit: "" }), ...patch },
   }));
 
+  /** Paruje dwóch gości (ustawia partnerId na obu) */
+  const pair = (idA: string, idB: string) => {
+    set((d: AppData) => ({
+      ...d,
+      guests: d.guests.map(g =>
+        g.id === idA ? { ...g, partnerId: idB } :
+        g.id === idB ? { ...g, partnerId: idA } : g
+      ),
+    }));
+    setPairingFor(null);
+  };
+
+  /** Rozparowuje gościa i jego partnera */
+  const unpair = (id: string) => {
+    set((d: AppData) => {
+      const g = d.guests.find(x => x.id === id);
+      const pid = g?.partnerId;
+      return {
+        ...d,
+        guests: d.guests.map(x =>
+          x.id === id || x.id === pid ? { ...x, partnerId: undefined } : x
+        ),
+      };
+    });
+  };
+
   const named          = data.guests.filter(g => g.name);
   const active         = named.filter(g => g.rsvp !== "Odmowa");
   const confirmed      = named.filter(g => g.rsvp === "Potwierdzony").length;
@@ -66,6 +126,7 @@ export function PageGuests({ data, set, editing }: PageProps) {
   const childCount     = named.filter(g => g.guestType === "child_half" || g.guestType === "child_free").length;
   const accom          = named.filter(g => g.needsAccommodation).length;
   const afterPartyCount = named.filter(g => g.poprawiny).length;
+  const pairedCount    = named.filter(g => g.partnerId && guestById[g.partnerId]?.name).length;
 
   const adultsCount    = active.filter(g => !g.guestType || g.guestType === "adult").length;
   const halfCount      = active.filter(g => g.guestType === "child_half").length;
@@ -98,13 +159,14 @@ export function PageGuests({ data, set, editing }: PageProps) {
         title="Lista zaproszonych"
         sub="Podzielona na stronę pani młodej, pana młodego i obsługę. Typ gościa i poprawiny dla każdej osoby."
         stats={[
-          { num: named.length,   label: "Łącznie" },
-          { num: confirmed,      label: "Potwierdzeni" },
-          { num: waiting,        label: "Oczekuje" },
-          { num: declined,       label: "Odmowa" },
-          { num: childCount,     label: "Dzieci" },
-          { num: afterPartyCount,label: "Poprawiny" },
-          { num: accom,          label: "Nocleg" },
+          { num: named.length,    label: "Łącznie" },
+          { num: confirmed,       label: "Potwierdzeni" },
+          { num: waiting,         label: "Oczekuje" },
+          { num: declined,        label: "Odmowa" },
+          { num: childCount,      label: "Dzieci" },
+          { num: afterPartyCount, label: "Poprawiny" },
+          { num: accom,           label: "Nocleg" },
+          { num: Math.floor(pairedCount / 2), label: "Par" },
         ]}
       />
 
@@ -213,10 +275,16 @@ export function PageGuests({ data, set, editing }: PageProps) {
       </div>
 
       {GUEST_SIDES.map(side => {
-        const groupGuests = bySide[side];
-        const groupNamed  = groupGuests.filter(g => g.name).length;
-        const isStaff     = side === "Obsługa";
-        const typeLabels  = isStaff ? STAFF_TYPE_LABELS : GUEST_TYPE_LABELS;
+        const groupGuests  = bySide[side];
+        const orderedGuests = buildOrderedGuests(groupGuests);
+        const groupNamed   = groupGuests.filter(g => g.name).length;
+        const isStaff      = side === "Obsługa";
+        const typeLabels   = isStaff ? STAFF_TYPE_LABELS : GUEST_TYPE_LABELS;
+
+        // Goście dostępni do sparowania (nie mają jeszcze partnera, nie są tym samym gościem)
+        const availableForPairing = (id: string) =>
+          data.guests.filter(g => g.name && g.id !== id && !g.partnerId);
+
         return (
           <div className="section" key={side}>
             <div className="section__h">
@@ -243,21 +311,45 @@ export function PageGuests({ data, set, editing }: PageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {groupGuests.length === 0 && (
+                  {orderedGuests.length === 0 && (
                     <tr>
                       <td colSpan={editing ? 9 : 8} className="muted serif-italic" style={{ textAlign: "center", padding: "24px 14px", fontStyle: "italic" }}>
                         Brak osób w tej grupie. {editing ? 'Kliknij „Dodaj" poniżej.' : "Włącz tryb edycji, by dodać."}
                       </td>
                     </tr>
                   )}
-                  {groupGuests.map((g, i) => {
+                  {orderedGuests.map((g, i) => {
                     const gt        = (g.guestType as GuestType) ?? "adult";
                     const unitPrice = guestPrice(pp, gt);
+                    const partner   = g.partnerId ? guestById[g.partnerId] : undefined;
+                    const isPaired  = !!partner;
+
+                    // Wyznacz czy to pierwsza osoba w parze (poprzedni wiersz nie był partnerem)
+                    const prevGuest = i > 0 ? orderedGuests[i - 1] : undefined;
+                    const isSecondOfPair = isPaired && prevGuest?.id === g.partnerId;
+                    const isFirstOfPair  = isPaired && !isSecondOfPair;
+
+                    const pairRowStyle: React.CSSProperties = isPaired ? {
+                      background: isFirstOfPair
+                        ? "oklch(from var(--accent) l c h / 0.04)"
+                        : "oklch(from var(--accent) l c h / 0.07)",
+                      borderLeft: "3px solid var(--accent)",
+                    } : {};
+
                     return (
-                      <tr key={g.id}>
+                      <tr key={g.id} style={pairRowStyle}>
                         <td className="mono muted">{String(i + 1).padStart(2, "0")}</td>
                         <td>
                           <Field value={g.name} onChange={(v) => updateGuest(g.id, { name: v })} placeholder="np. Anna Kowalska" editing={editing} inline />
+
+                          {/* Partner badge — widok */}
+                          {!editing && partner?.name && (
+                            <div className="mono muted" style={{ fontSize: 10, marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                              <span style={{ color: "var(--accent)" }}>↔</span>
+                              <span>{partner.name}</span>
+                            </div>
+                          )}
+
                           {editing && (
                             <div style={{ marginTop: 6 }}>
                               <Field value={g.side} onChange={(v) => updateGuest(g.id, { side: v })} editing={editing} inline options={[...GUEST_SIDES]} />
@@ -269,6 +361,58 @@ export function PageGuests({ data, set, editing }: PageProps) {
                             </div>
                           )}
                           {!editing && g.address && <div className="muted mono" style={{ fontSize: 10, marginTop: 2 }}>{g.address}</div>}
+
+                          {/* Parowanie — tryb edycji */}
+                          {editing && (
+                            <div style={{ marginTop: 6 }}>
+                              {isPaired ? (
+                                /* Już sparowany */
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                                  <span style={{ color: "var(--accent)" }}>↔</span>
+                                  <span className="muted">{partner?.name || "(brak nazwy)"}</span>
+                                  <button
+                                    className="btn btn--ghost btn--small"
+                                    onClick={() => unpair(g.id)}
+                                    style={{ fontSize: 10, padding: "1px 6px", color: "var(--ink-faint)" }}
+                                  >
+                                    Rozłącz
+                                  </button>
+                                </div>
+                              ) : pairingFor === g.id ? (
+                                /* Wybieramy partnera */
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <select
+                                    className="field__input"
+                                    style={{ fontSize: 11, padding: "2px 4px" }}
+                                    defaultValue=""
+                                    onChange={(e) => e.target.value && pair(g.id, e.target.value)}
+                                  >
+                                    <option value="" disabled>Wybierz partnera…</option>
+                                    {availableForPairing(g.id).map(p => (
+                                      <option key={p.id} value={p.id}>{p.name} ({p.side})</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    className="btn btn--ghost btn--small"
+                                    onClick={() => setPairingFor(null)}
+                                    style={{ fontSize: 10, padding: "1px 6px" }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ) : (
+                                /* Przycisk Sparuj */
+                                <button
+                                  className="btn btn--ghost btn--small"
+                                  onClick={() => setPairingFor(g.id)}
+                                  style={{ fontSize: 10, padding: "1px 6px", color: "var(--ink-faint)" }}
+                                  title="Sparuj z innym gościem"
+                                >
+                                  ↔ Sparuj
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td>
                           <Field value={g.phone} onChange={(v) => updateGuest(g.id, { phone: v })} placeholder="+48…" editing={editing} inline />
