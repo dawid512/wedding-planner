@@ -28,7 +28,7 @@ Jesli ten plik i `README.md` sa sprzeczne, pierwszenstwo ma ten plik.
 3. Repo GitHub:
    `https://github.com/dawid512/wedding-planner`
 4. Aktualna data aktualizacji tego pliku:
-   `2026-05-17`
+   `2026-05-19`
 5. Obecny build lokalny:
    `npm run build` przechodzi
 6. Obecny hosting:
@@ -169,13 +169,15 @@ Zasady:
 2. pelny `TypeScript` — wszystkie pliki `src/` zmigrowane do `.tsx/.ts`
 3. prawdziwe Google OAuth 2.0 (GIS Token Client) — zamiast mock auth z `localStorage`
 4. zapis i odczyt danych z `Google Drive` — plik `wedding-data.json` per użytkownik
-5. multi-workspace — użytkownik ma własny plan + może dołączyć do wielu gościnnych; przełączanie w sidebar
-6. system zapraszania — email przez Drive API (główna akcja) + link `?join=FILEID` (pomocniczy)
-7. zarządzanie rolami — właściciel zmienia Edytor↔Podgląd i usuwa osoby z InviteModal
-8. Google Picker — fallback przy pierwszym dołączeniu (gdy drive.file scope jeszcze nie obejmuje pliku)
-9. brak soft locks i sync engine (do zrobienia)
-10. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
-11. dzialajacy UI i deploy
+5. multi-workspace — użytkownik ma własny plan + może dołączyć do wielu gościnnych; przełączanie w sidebar i UserMenu
+6. system zapraszania — wyłącznie email przez Drive API; brak linków `?join=`; auto-discovery przez `listSharedFiles`
+7. `user-config.json` — lista udostępnionych planów przechowywana w Drive użytkownika (cross-device, cross-browser)
+8. zarządzanie rolami — właściciel zmienia Edytor↔Podgląd i usuwa osoby z InviteModal
+9. Google Picker — fallback gdy użytkownik chce ręcznie znaleźć plik
+10. workspace switcher w UserMenu — kliknięcie awatara → lista planów + możliwość przełączania
+11. brak soft locks i sync engine (do zrobienia)
+12. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
+13. dzialajacy UI i deploy
 
 Wniosek:
 
@@ -326,69 +328,21 @@ Wniosek:
 
 ## 9. Do zrobienia teraz
 
-### [PILNE] A. Auto-discovery bez linku zaproszenia — weryfikacja i fallback
+### A. Token refresh
 
-**Stan obecny:** `bootstrapDrive` wywołuje `listSharedFiles(token, "wedding-data.json")` który szuka wszystkich dostępnych plików o tej nazwie. Wynik jest odfiltrowany przez `alreadyKnown` (wyklucza własny plan i już załadowane plany gościa). Znalezione pliki są ładowane automatycznie.
+Token GIS wygasa po 1h. Brak auto-refresh — teraz jest komunikat o wygaśnięciu z instrukcją ponownego logowania.
 
-**Problem:** Mechanizm może nie działać w edge-casach:
-- Google Drive API może potrzebować czasu zanim nowo udostępniony plik pojawi się w wynikach search.
-- Jeśli właściciel i gość mają oba plik `wedding-data.json` (własny plan gościa), własny plik gościa jest odfiltrowany przez `sf.id === ownWs.fileId` — to działa poprawnie.
-- Jeśli plik nie jest jeszcze widoczny w search po zalogowaniu, gość nie zobaczy go w sidebarze.
+**Docelowo:** wywołać `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50 min i zaktualizować `_tokenRef` + `_tokenAge`.
 
-**Proponowany fallback:**
-Jeśli po `bootstrapDrive` `allWs.length === 1` (tylko własny plan) AND gość ma wpis w `wp_g_guest_plans` ale plik nie załadował się → pokazać banner informujący o nieudanym auto-discovery z przyciskiem "Szukaj planu" który otwiera Drive Picker.
+### B. Rozbicie danych
 
-**Alternatywa (prostsza):** dodać do `UserMenu` sekcję "Oczekujące zaproszenia" z przyciskiem "Szukaj planu w Drive" → otwiera `openFilePicker` → `_loadGuestFile(result.fileId)`.
+Rozbić `wedding-data.json` na osobne pliki domenowe:
+`guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
 
----
+### C. Sync + soft locks
 
-### [PILNE] B. Przełączanie planów w UserMenu
-
-**Stan obecny:** Switcher workspace jest w `src/app.tsx` w sidebarze (sekcja na dole nawigacji), widoczny tylko gdy `auth.myWorkspaces.length > 1`. Na mobile sidebar jest ukryty za hamburger menu — przełączanie wymaga 2 tapnięć.
-
-**Wymaganie:** Po kliknięciu awatara/imienia użytkownika (komponent `UserMenu` w prawym górnym rogu topbara) popup powinien zawierać:
-1. Sekcję "Moje plany" z listą wszystkich workspace'ów (`auth.myWorkspaces`)
-2. Przy każdym planie: nazwa + etykieta roli (Właściciel / Edytor / Podgląd) + znacznik aktywnego
-3. Kliknięcie na plan → `auth.switchWorkspace(ws.id)` + zamknięcie popupu
-
-**Gdzie to zrobić:**
-- Plik: `src/auth.tsx`, komponent `UserMenu` (linie ~1099–1154)
-- `UserMenu` otrzymuje `auth: AuthState` jako prop — ma dostęp do `auth.myWorkspaces`, `auth.activeWorkspace`, `auth.switchWorkspace`
-- Dodać sekcję przed "Wyloguj się":
-
-```tsx
-{auth.myWorkspaces.length > 1 && (
-  <>
-    <div className="user-menu__div" />
-    <div className="user-menu__label">Moje plany</div>
-    {auth.myWorkspaces.map(ws => (
-      <button
-        key={ws.id}
-        className={"user-menu__item" + (ws.id === auth.activeWorkspace?.id ? " is-active" : "")}
-        onClick={() => { auth.switchWorkspace(ws.id); setOpen(false); }}
-      >
-        <span className="user-menu__ws-role">{ws.myRole === "Właściciel" ? "Wł" : ws.myRole === "Edytor" ? "Ed" : "Pp"}</span>
-        {ws.name}
-      </button>
-    ))}
-  </>
-)}
-```
-
-- Dodać style `.user-menu__label` (nagłówek sekcji, podobny do `.ornament`) i `.user-menu__ws-role` (mała etykieta roli, podobna do `.ws-label__role`) w `src/styles.css`
-- Opcjonalnie: usunąć lub ukryć sidebar switcher gdy UserMenu switcher jest dostępny (żeby uniknąć duplikacji) — ale można zostawić oba
-
-**Typ `Workspace`** jest eksportowany z `src/auth.tsx`, więc `ws.myRole`, `ws.name`, `ws.id` są dostępne.
-
----
-
-### Pozostałe
-
-1. Token refresh: token GIS wygasa po 1h — teraz jest komunikat o wygaśnięciu, ale brak auto-refresh. Docelowo: wywołać `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min i zaktualizować `_tokenRef` + `_tokenAge`.
-2. Rozbic `wedding-data.json` na osobne pliki domenowe:
-   `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
-3. Dodac `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porownanie etag/revisionId.
-4. Dodac `src/lib/locks.ts` — soft lock per modul, heartbeat co 10-20s, timeout 60-90s.
+1. Dodać `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porównanie etag/revisionId.
+2. Dodać `src/lib/locks.ts` — soft lock per moduł, heartbeat co 10-20s, timeout 60-90s.
 
 ## 10. Do zrobienia pozniej
 
@@ -476,6 +430,20 @@ Jeśli po `bootstrapDrive` `allWs.length === 1` (tylko własny plan) AND gość 
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (user-config.json + UserMenu switcher + brak join linków + React.memo perf)
+
+1. **Usunięto linki `?join=FILEID`** — cały mechanizm join links usunięty z `bootstrapDrive`, `PickerScreen`, `InviteModal`, `clearSession`, `switchWorkspace`. Zaproszenie odbywa się wyłącznie przez email (Drive API `shareFile`), a auto-discovery przez `listSharedFiles`.
+2. **`user-config.json`** — nowy plik w folderze `WeddingPlanner` na Drive użytkownika, przechowuje `{ sharedPlans: string[] }` (fileIds udostępnionych planów). Zastępuje `wp_g_guest_plans` z localStorage → działa cross-device i cross-browser. Logika w `ensureUserConfig()` (module-level helper) + `configFileIdRef` w `useAuth`.
+3. **`bootstrapOwnPlan`** zwraca `{ ws: Workspace; folderId: string }` zamiast samego `Workspace` — folderId potrzebny do `ensureUserConfig`.
+4. **`bootstrapDrive`** przepisany: (1) bootstrap własnego planu, (2) `ensureUserConfig` → załaduj znane plany z `user-config.json`, (3) auto-discovery przez `listSharedFiles` → zapisz nowo odkryte do `user-config.json`, (4) ustaw session atomicznie.
+5. **`loadGuestFile`** (Picker) zapisuje nowo wybrany fileId do `user-config.json`.
+6. **`updateActiveData`** i **`switchWorkspace`** oczyszczone z localStorage guest plan calls — nie ma już `saveGuestPlans`/`getGuestPlans`.
+7. **`clearSession`** czyści legacy klucze (`wp_g_guest_plans`, `wp_g_join_file_id`) i zeruje `configFileIdRef`.
+8. **UserMenu workspace switcher** — kliknięcie awatara wyświetla sekcję "Twoje plany" z listą wszystkich workspace'ów (gdy `myWorkspaces.length > 1`). Każdy wpis: skrót roli (Wł/Ed/Pp) + nazwa planu + znacznik aktywnego. Kliknięcie = `switchWorkspace(ws.id)` + zamknięcie popupu.
+9. **React.memo na komponentach stron** — `PAGE_COMPONENTS` w `app.tsx` owinięto w `React.memo`. Strony nie re-renderują się przy otwieraniu `InviteModal` — eliminuje lag przy otwieraniu modala.
+10. Dodano style `.user-menu__section-label`, `.user-menu__ws-role`, `.user-menu__item--active` w `src/styles.css`.
+11. `npm run typecheck` przechodzi bez błędów.
 
 ### 2026-05-18 (bugfixes: "Brak planu" flash + 404 stale ID + Picker 401)
 

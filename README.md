@@ -94,14 +94,16 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 57. **Fix: auto-discovery shared plans** — zmieniono query w `listSharedFiles` z `sharedWithMe=true` na szerokie `name='wedding-data.json' and trashed=false`. Pliki udostępnione przez Drive API permissions nie zawsze pojawiają się w "Shared with me".
 58. **Fix: aktywny workspace persystuje przez refresh** — `switchWorkspace` zapisuje ID do `localStorage (wp_g_active_ws_id)`. Przy każdym logowaniu/odświeżeniu `bootstrapDrive` przywraca ostatni wybrany workspace zamiast zawsze aktywować własny plan.
 59. **Fix: InviteModal lag** — owinięto w `React.memo`, useCallback na wszystkich handlerach, `useEffect` dla permisji działa raz przy montowaniu (nie re-triggeruje przy re-renderach parenta), dodano cleanup flagi `cancelled` dla pending async calls.
+60. **Usunięto linki `?join=FILEID`** — mechanizm join linków całkowicie usunięty. Zaproszenie odbywa się wyłącznie przez email (Drive API), a auto-discovery przez `listSharedFiles`.
+61. **`user-config.json`** — dane o udostępnionych planach przechowywane w Drive użytkownika (plik `user-config.json` w folderze WeddingPlanner), a nie w localStorage. Działa cross-device i cross-browser.
+62. **Workspace switcher w UserMenu** — kliknięcie awatara (prawy górny róg) pokazuje listę wszystkich planów (własny + udostępnione) z możliwością przełączania. Pokazuje się tylko gdy użytkownik ma dostęp do więcej niż jednego planu.
+63. **React.memo na komponentach stron** — `PAGE_COMPONENTS` w `app.tsx` owinięto w `React.memo`. Strony nie re-renderują się przy otwieraniu `InviteModal` — eliminuje lag przy otwieraniu modala.
 
 ## Do zrobienia teraz
 
-1. **[PILNE] Auto-discovery bez linku** — mechanizm `listSharedFiles` jest zaimplementowany, ale wymaga weryfikacji czy Drive API rzeczywiście zwraca udostępnione pliki bez `?join=`. Jeśli nie działa, fallback: po zalogowaniu pokazać użytkownikowi ekran wyboru planu (własny / udostępniony przez email) z opcją ręcznego wpisania/wklejenia ID pliku lub wyszukania w Drive Picker.
-2. **[PILNE] Przełączanie planów w UserMenu** — obecnie przełącznik workspace jest tylko w sidebarze (desktop). Należy przenieść go / zduplikować do popupa `UserMenu` (kliknięcie awatara w prawym górnym rogu), tak żeby użytkownik widział: swój plan, wszystkie plany do których jest zaproszony, i mógł między nimi przełączać jednym kliknięciem. Szczegóły implementacji w `PROJECT_HANDOFF.md`.
-3. Dodać token refresh — aktualny token GIS wygasa po 1 godz. (teraz jest komunikat o wygaśnięciu, nie auto-refresh).
-4. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
-5. Dodać soft locks per moduł + heartbeat.
+1. Dodać token refresh — aktualny token GIS wygasa po 1 godz. (teraz jest komunikat o wygaśnięciu, nie auto-refresh).
+2. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
+3. Dodać soft locks per moduł + heartbeat.
 
 ## Lokalny start
 
@@ -140,5 +142,5 @@ Deploy odbywa sie przez `GitHub Actions` do `GitHub Pages`.
 1. Token GIS wygasa po 1 godz. — po wygaśnięciu Picker pokazuje błąd z instrukcją ponownego logowania (brak auto-refresh).
 2. Wszystkie dane w jednym pliku `wedding-data.json` (brak podziału domenowego).
 3. Brak soft locks i sync engine.
-4. Przy pierwszym zaproszeniu: właściciel musi wysłać **email przez Drive** (opcja w panelu "Zaproś") — sam link bez emaila nie wystarczy, bo plik nie trafi do Drive gościa. Po emailu gość widzi plan automatycznie po logowaniu (auto-discovery).
+4. Przy pierwszym zaproszeniu: właściciel musi wysłać **email przez Drive** (opcja w panelu "Zaproś") — bez emaila gość nie zobaczy pliku w Drive, a auto-discovery nie zadziała.
 5. Zmiana roli (Edytor→Podgląd) jest widoczna po przelogowaniu gościa — aplikacja sprawdza `capabilities.canEdit` przy każdym logowaniu.
