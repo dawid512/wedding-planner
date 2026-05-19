@@ -329,21 +329,27 @@ Wniosek:
 
 ## 9. Do zrobienia teraz
 
-### A. Token refresh
+### Priorytety od właściciela (lista od 2026-05-19)
 
-Token GIS wygasa po 1h. Brak auto-refresh — teraz jest komunikat o wygaśnięciu z instrukcją ponownego logowania.
+1. **Refaktoryzacja i nawigacja po kodzie** — podział plików stron, porządek w kodzie, instrukcja `.md` dla agenta AI ułatwiająca poruszanie się po plikach i zmniejszająca zużycie tokenów. Pliki do rozważenia: `pages-1.tsx`, `pages-2.tsx`, `pages-3.tsx` — każdy to kilkaset linii; warto podzielić na 1 plik per strona.
+2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze). Sprawdzić breakpointy, inputy, modalne na małych ekranach.
+3. **Pola daty na telefonie** — na mobilnym nie da się wyczyścić zawartości pola `<input type="date">`; dodać przycisk `×` w trybie edycji obok każdego pola daty (widoczny tylko gdy pole ma wartość i `editing === true`).
+4. **Fix blokady edycji (KRYTYCZNY)** — nadal 2 użytkowników może edytować naraz. Obecna implementacja write-then-verify (350 ms delay) nie działa w praktyce. Wymaga innego podejścia — np. oddzielny plik `wedding-lock.json` lub polling przed edycją.
+5. **Strona Budżet — koszty automatyczne** — dodać statyczną (poza trybem edycji) sekcję "Sala weselna · goście" pokazującą sumę kosztów z kalkulatora z strony Lista Gości. Tak samo dla pozycji Stroje — auto-sumowanie z strony Stroje. Poprawić etykietę "auto · z Stroje" → czytelny tooltip / opis źródła danych.
+6. **Lista Gości — domyślne dane startowe** — przy pierwszym uruchomieniu (pusta lista) defaultowo tworzyć: stół "Para Młoda" z 2 osobami (Pan Młody, Pani Młoda), potem standardowe "Stół 1", "Stół 2" itd. jako sugestia.
+7. **Lista Gości — uproszczenie** — usunąć kolumny/checkboxy: `+1`, transport, prezent. Odchudzić widok.
+8. **Lista Gości — parowanie gości** — dodać opcję "Dodaj partnera" łączącą dwie osoby w parę. Pary wyświetlane jeden pod drugim. Para traktowana jako jednostka przy przydziale do stołów.
+9. **Plan stołów — domyślny stół pary młodej** — domyślnie przypisać Pan Młody + Pani Młoda do stołu "Para Młoda" (2-osobowy). Spójne z domyślnymi danymi z pkt 6.
+10. **Menu boczne** — usunąć z sidebar: "Współedytorzy · 1" i "Zaproś osobę". Zarządzanie dostępem zostaje tylko w UserMenu (avatar).
+11. **Obsługa zdjęć i grafik** — upload do folderu na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać file ID lub URL (nie base64, nie blob). Strategia: każdy user uploaduje do swojego `WeddingPlanner/attachments/`; linki współdzielone przez permissions Drive.
+12. **Domyślny plan przy starcie** — checkbox w ustawieniach: "Otwieraj domyślnie ten plan" (zapamiętany w `user-config.json`). Przy bootstrapDrive jeśli ustawiony — aktywować wskazany plan zamiast własnego.
+13. **RODO / cookies / zgody** — banner cookies, link do Privacy Policy, obsługa `localStorage` tylko po zgodzie, polityka przechowywania danych (wymagane przez Google OAuth verification).
+14. **Weryfikacja Google OAuth** — lista wymagań: hosted Privacy Policy URL, Terms of Service URL, opis zakresu `drive` w formularzu weryfikacji, ograniczenie scope do minimum (rozważyć powrót do `drive.file`), brand verification.
 
-**Docelowo:** wywołać `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50 min i zaktualizować `_tokenRef` + `_tokenAge`.
+### Pozostałe techniczne
 
-### B. Rozbicie danych
-
-Rozbić `wedding-data.json` na osobne pliki domenowe:
-`guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
-
-### C. Sync + soft locks
-
-1. Dodać `src/lib/sync-engine.ts` — fetch przed edycja, upload po zapisie, porównanie etag/revisionId.
-2. Dodać `src/lib/locks.ts` — soft lock per moduł, heartbeat co 10-20s, timeout 60-90s.
+- Token refresh: GIS token wygasa po 1h; wywołać `requestAccessToken({ prompt: '' })` co ~50 min w tle.
+- Rozbić `wedding-data.json` na pliki domenowe: `guests.json`, `budget.json`, `tasks.json` itd.
 
 ## 10. Do zrobienia pozniej
 

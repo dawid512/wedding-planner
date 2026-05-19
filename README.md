@@ -104,9 +104,27 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 
 ## Do zrobienia teraz
 
-1. Dodać token refresh — aktualny token GIS wygasa po 1 godz. (teraz jest komunikat o wygaśnięciu, nie auto-refresh).
-2. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
-3. Dodać soft locks per moduł + heartbeat.
+### Priorytety od właściciela (kolejność dowolna)
+
+1. **Refaktoryzacja i nawigacja po kodzie** — podział plików stron, porządek w kodzie, instrukcja `.md` dla agenta AI ułatwiająca poruszanie się po plikach i zmniejszająca zużycie tokenów.
+2. **UI / mobile** — poprawić ogólny wygląd, uzupełnić brakujące stylowanie dla wersji mobilnej (PC skaluje się dobrze).
+3. **Pola daty na telefonie** — nie da się wyczyścić zawartości; dodać przycisk `×` w trybie edycji czyszczący pole daty.
+4. **Fix blokady edycji** — nadal 2 użytkowników może edytować naraz; obecna implementacja write-then-verify nie działa w praktyce.
+5. **Strona Budżet — koszty sali i stroje** — dodać statyczną (nie do edycji) sekcję "Sala weselna · goście" z sumą cen wszystkich gości (tak jak na stronie Lista Gości). Tak samo dla Strojów. Poprawić "auto · z Stroje" → automatyczne uzupełnianie z strony Stroje lub Lista Gości.
+6. **Lista Gości — domyślny stół pary młodej** — defaultowo stół pary młodej z 2 osobami (pan młody + pani młoda, z możliwością dodania więcej), a potem standardowo stół 1, stół 2 itd.
+7. **Lista Gości — uproszczenie** — usunąć opcje: `+1`, checkbox transport, checkbox prezent.
+8. **Lista Gości — parowanie gości** — dodać opcję "dodaj partnera" grupującą ludzi w pary; partnerzy wyświetlani jeden pod drugim dla lepszej czytelności; pary widoczne też w planie stołów.
+9. **Plan stołów — domyślny stół pary młodej** — domyślnie przypisać do stołu pary młodej gości: pan młody + pani młoda; defaultowo stół 2-osobowy.
+10. **Menu boczne — usunąć** "Współedytorzy · 1" i "Zaproś osobę" z sidebar.
+11. **Obsługa zdjęć i grafik** — przechowywać pliki na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać link (file ID lub URL) do grafiki. Nie zawalać dysku właściciela.
+12. **Domyślny plan przy starcie** — jeśli użytkownik ma dostęp do więcej niż jednego planu (własny + udostępnione), dodać checkbox w ustawieniach pozwalający wybrać który plan ładuje się domyślnie po otwarciu strony.
+13. **RODO / cookies / zgody** — dodać monity odnośnie RODO, cookies itp., aby strona przeszła weryfikację Google.
+14. **Weryfikacja Google** — refaktor i lista uwag niezbędnych do przejścia weryfikacji Google OAuth (privacy policy, TOS, zakres danych, itp.).
+
+### Pozostałe (techniczne)
+
+- Dodać token refresh — aktualny token GIS wygasa po 1 godz. (teraz jest komunikat, nie auto-refresh).
+- Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
 
 ## Lokalny start
 
