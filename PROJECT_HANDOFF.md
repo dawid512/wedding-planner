@@ -175,7 +175,7 @@ Zasady:
 8. zarządzanie rolami — właściciel zmienia Edytor↔Podgląd i usuwa osoby z InviteModal
 9. Google Picker — fallback gdy użytkownik chce ręcznie znaleźć plik
 10. workspace switcher w UserMenu — kliknięcie awatara → lista planów + możliwość przełączania
-11. **soft edit lock** — `_editLock: { email, lockedAt }` w `wedding-data.json`; TTL 10 min; ostrzeżenie 8 min
+11. **soft edit lock** — `_editLock: { email, lockedAt }` w `wedding-data.json`; TTL 10 min; ostrzeżenie 8 min; `acquireLock` używa `readJsonFileWithEtag` + `If-Match` (ETag) — eliminuje race condition gdy 2 osoby klikają "Edytuj" równocześnie (Drive zwraca 412 dla drugiego zapisu)
 12. brak sync engine i per-module locks (do zrobienia)
 12. brak podziału na osobne pliki domenowe (wszystko w `wedding-data.json`)
 13. dzialajacy UI i deploy
@@ -431,6 +431,13 @@ Rozbić `wedding-data.json` na osobne pliki domenowe:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (fix: race condition w edit lock — ETag + If-Match)
+
+1. **`readJsonFileWithEtag<T>`** — nowa funkcja w `google-drive.ts`. Pobiera zawartość pliku i jego ETag równolegle (dwa `fetch` w `Promise.all`). ETag zmienia się przy każdym zapisie.
+2. **`updateJsonFile`** — dodano opcjonalny parametr `ifMatchEtag?: string`. Gdy podany, dołącza nagłówek `If-Match: <etag>` do żądania PATCH. Drive zwraca `412 Precondition Failed` jeśli plik był zmodyfikowany między naszym odczytem a zapisem. Rzuca błąd z message `"LOCK_CONFLICT"`.
+3. **`acquireLock`** przepisany: (1) `readJsonFileWithEtag` zamiast `readJsonFile` — pobiera ETag, (2) sprawdza blokadę jak poprzednio, (3) `updateJsonFile(t, fid, newData, etag)` — zapis z `If-Match`. Jeśli `LOCK_CONFLICT` (412) → zwraca `{ ok: false, lockedBy: "?" }`. Eliminuje TOCTOU: dwóch użytkowników klikających "Edytuj" równocześnie — tylko jeden zapiszesie pomyślnie, drugi dostaje 412 i jest blokowany.
+4. `npm run typecheck` przechodzi bez błędów.
 
 ### 2026-05-19 (user-config.json + UserMenu switcher + brak join linków + React.memo perf)
 
