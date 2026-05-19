@@ -337,10 +337,10 @@ Wniosek:
 3. ~~**Pola daty na telefonie**~~ ✅ ZROBIONE (2026-05-19) — `DateInput` w `_shared.tsx` z przyciskiem `×`; zaktualizowane: `dashboard.tsx`, `tasks.tsx`, `payments.tsx`, `events.tsx`, `documents.tsx`.
 4. **Fix blokady edycji (KRYTYCZNY)** — nadal 2 użytkowników może edytować naraz. Obecna implementacja write-then-verify (350 ms delay) nie działa w praktyce. Wymaga innego podejścia — np. oddzielny plik `wedding-lock.json` lub polling przed edycją.
 5. ~~**Strona Budżet — koszty automatyczne**~~ ✅ ZROBIONE (2026-05-19) — `calcVenueCosts()` w `core.tsx`; auto-wiersz "Sala weselna" w `budget.tsx`; wliczony do sum `plannedAll`/`actualAll`.
-6. **Lista Gości — domyślne dane startowe** — przy pierwszym uruchomieniu (pusta lista) defaultowo tworzyć: stół "Para Młoda" z 2 osobami (Pan Młody, Pani Młoda), potem standardowe "Stół 1", "Stół 2" itd. jako sugestia.
+6. ~~**Lista Gości — domyślne dane startowe**~~ ✅ ZROBIONE (2026-05-19) — g1 "Panna Młoda" + g2 "Pan Młody", RSVP Potwierdzony, sparowane ze sobą.
 7. ~~**Lista Gości — uproszczenie**~~ ✅ ZROBIONE (2026-05-19) — `plusone`, `needsTransport`, `giftReceived` usunięte z `Guest` interface, `EMPTY_DATA` i `addGuest`.
 8. ~~**Lista Gości — parowanie gości**~~ ✅ ZROBIONE (2026-05-19) — `partnerId?: string` w `Guest`, `pair`/`unpair`, `buildOrderedGuests`, badge ↔, plan stołów też.
-9. **Plan stołów — domyślny stół pary młodej** — domyślnie przypisać Pan Młody + Pani Młoda do stołu "Para Młoda" (2-osobowy). Spójne z domyślnymi danymi z pkt 6.
+9. ~~**Plan stołów — domyślny stół pary młodej**~~ ✅ ZROBIONE (2026-05-19) — stół "Para Młoda" capacity 2, guests: ["g1","g2"].
 10. **Menu boczne** — usunąć z sidebar: "Współedytorzy · 1" i "Zaproś osobę". Zarządzanie dostępem zostaje tylko w UserMenu (avatar).
 11. **Obsługa zdjęć i grafik** — upload do folderu na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać file ID lub URL (nie base64, nie blob). Strategia: każdy user uploaduje do swojego `WeddingPlanner/attachments/`; linki współdzielone przez permissions Drive.
 12. **Domyślny plan przy starcie** — checkbox w ustawieniach: "Otwieraj domyślnie ten plan" (zapamiętany w `user-config.json`). Przy bootstrapDrive jeśli ustawiony — aktywować wskazany plan zamiast własnego.
@@ -438,6 +438,14 @@ Wniosek:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (TODO #6 + #9: Domyślny stół pary młodej)
+
+1. `EMPTY_DATA.guests`: g1 name→"Panna Młoda", rsvp→"Potwierdzony", partnerId→"g2"; g2 name→"Pan Młody", rsvp→"Potwierdzony", partnerId→"g1".
+2. `EMPTY_DATA.tables`: table1 name→"Para Młoda", capacity→2, guests→["g1","g2"]; pozostałe 3 stoły bez zmian (8 miejsc, puste).
+3. Nowi użytkownicy widzą od razu parę młodą na liście gości (RSVP Potwierdzony, sparowaną) oraz stół "Para Młoda" z 2 miejscami w planie stołów.
+4. Istniejący użytkownicy (dane w Drive) — bez zmian.
+5. `npm run typecheck` — 0 błędów.
 
 ### 2026-05-19 (TODO #8: Goście — parowanie)
 

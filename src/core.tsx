@@ -283,14 +283,14 @@ const EMPTY_DATA: AppData = {
     { id: "b9", category: "Zaproszenia", planned: "", actual: "", paid: false, paidDate: "", notes: "" },
     { id: "b10", category: "Tort", planned: "", actual: "", paid: false, paidDate: "", notes: "" },
   ],
-  // guests
+  // guests — para młoda jako pierwsze wpisy (sparowane ze sobą, potwierdzone)
   guests: [
-    { id: "g1", name: "", side: "Panna młoda", rsvp: "Czeka", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false },
-    { id: "g2", name: "", side: "Pan młody", rsvp: "Czeka", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false },
+    { id: "g1", name: "Panna Młoda", side: "Panna młoda", rsvp: "Potwierdzony", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false, partnerId: "g2" },
+    { id: "g2", name: "Pan Młody",   side: "Pan młody",   rsvp: "Potwierdzony", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false, partnerId: "g1" },
   ],
-  // tables
+  // tables — stół pary młodej 2-osobowy z g1/g2, potem puste stoły na gości
   tables: [
-    { id: "table1", name: "Stół młodej pary", capacity: 8, guests: ["", "", "", "", "", "", "", ""] },
+    { id: "table1", name: "Para Młoda", capacity: 2, guests: ["g1", "g2"] },
     { id: "table2", name: "Stół 1", capacity: 8, guests: ["", "", "", "", "", "", "", ""] },
     { id: "table3", name: "Stół 2", capacity: 8, guests: ["", "", "", "", "", "", "", ""] },
     { id: "table4", name: "Stół 3", capacity: 8, guests: ["", "", "", "", "", "", "", ""] },
