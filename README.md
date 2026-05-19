@@ -97,9 +97,11 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 
 ## Do zrobienia teraz
 
-1. Dodać token refresh — aktualny token GIS wygasa po 1 godz. (teraz jest komunikat o wygaśnięciu, nie auto-refresh).
-2. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
-3. Dodać soft locks per moduł + heartbeat.
+1. **[PILNE] Auto-discovery bez linku** — mechanizm `listSharedFiles` jest zaimplementowany, ale wymaga weryfikacji czy Drive API rzeczywiście zwraca udostępnione pliki bez `?join=`. Jeśli nie działa, fallback: po zalogowaniu pokazać użytkownikowi ekran wyboru planu (własny / udostępniony przez email) z opcją ręcznego wpisania/wklejenia ID pliku lub wyszukania w Drive Picker.
+2. **[PILNE] Przełączanie planów w UserMenu** — obecnie przełącznik workspace jest tylko w sidebarze (desktop). Należy przenieść go / zduplikować do popupa `UserMenu` (kliknięcie awatara w prawym górnym rogu), tak żeby użytkownik widział: swój plan, wszystkie plany do których jest zaproszony, i mógł między nimi przełączać jednym kliknięciem. Szczegóły implementacji w `PROJECT_HANDOFF.md`.
+3. Dodać token refresh — aktualny token GIS wygasa po 1 godz. (teraz jest komunikat o wygaśnięciu, nie auto-refresh).
+4. Rozbić `wedding-data.json` na osobne pliki domenowe (`guests.json`, `budget.json`, itd.).
+5. Dodać soft locks per moduł + heartbeat.
 
 ## Lokalny start
 

@@ -326,6 +326,64 @@ Wniosek:
 
 ## 9. Do zrobienia teraz
 
+### [PILNE] A. Auto-discovery bez linku zaproszenia — weryfikacja i fallback
+
+**Stan obecny:** `bootstrapDrive` wywołuje `listSharedFiles(token, "wedding-data.json")` który szuka wszystkich dostępnych plików o tej nazwie. Wynik jest odfiltrowany przez `alreadyKnown` (wyklucza własny plan i już załadowane plany gościa). Znalezione pliki są ładowane automatycznie.
+
+**Problem:** Mechanizm może nie działać w edge-casach:
+- Google Drive API może potrzebować czasu zanim nowo udostępniony plik pojawi się w wynikach search.
+- Jeśli właściciel i gość mają oba plik `wedding-data.json` (własny plan gościa), własny plik gościa jest odfiltrowany przez `sf.id === ownWs.fileId` — to działa poprawnie.
+- Jeśli plik nie jest jeszcze widoczny w search po zalogowaniu, gość nie zobaczy go w sidebarze.
+
+**Proponowany fallback:**
+Jeśli po `bootstrapDrive` `allWs.length === 1` (tylko własny plan) AND gość ma wpis w `wp_g_guest_plans` ale plik nie załadował się → pokazać banner informujący o nieudanym auto-discovery z przyciskiem "Szukaj planu" który otwiera Drive Picker.
+
+**Alternatywa (prostsza):** dodać do `UserMenu` sekcję "Oczekujące zaproszenia" z przyciskiem "Szukaj planu w Drive" → otwiera `openFilePicker` → `_loadGuestFile(result.fileId)`.
+
+---
+
+### [PILNE] B. Przełączanie planów w UserMenu
+
+**Stan obecny:** Switcher workspace jest w `src/app.tsx` w sidebarze (sekcja na dole nawigacji), widoczny tylko gdy `auth.myWorkspaces.length > 1`. Na mobile sidebar jest ukryty za hamburger menu — przełączanie wymaga 2 tapnięć.
+
+**Wymaganie:** Po kliknięciu awatara/imienia użytkownika (komponent `UserMenu` w prawym górnym rogu topbara) popup powinien zawierać:
+1. Sekcję "Moje plany" z listą wszystkich workspace'ów (`auth.myWorkspaces`)
+2. Przy każdym planie: nazwa + etykieta roli (Właściciel / Edytor / Podgląd) + znacznik aktywnego
+3. Kliknięcie na plan → `auth.switchWorkspace(ws.id)` + zamknięcie popupu
+
+**Gdzie to zrobić:**
+- Plik: `src/auth.tsx`, komponent `UserMenu` (linie ~1099–1154)
+- `UserMenu` otrzymuje `auth: AuthState` jako prop — ma dostęp do `auth.myWorkspaces`, `auth.activeWorkspace`, `auth.switchWorkspace`
+- Dodać sekcję przed "Wyloguj się":
+
+```tsx
+{auth.myWorkspaces.length > 1 && (
+  <>
+    <div className="user-menu__div" />
+    <div className="user-menu__label">Moje plany</div>
+    {auth.myWorkspaces.map(ws => (
+      <button
+        key={ws.id}
+        className={"user-menu__item" + (ws.id === auth.activeWorkspace?.id ? " is-active" : "")}
+        onClick={() => { auth.switchWorkspace(ws.id); setOpen(false); }}
+      >
+        <span className="user-menu__ws-role">{ws.myRole === "Właściciel" ? "Wł" : ws.myRole === "Edytor" ? "Ed" : "Pp"}</span>
+        {ws.name}
+      </button>
+    ))}
+  </>
+)}
+```
+
+- Dodać style `.user-menu__label` (nagłówek sekcji, podobny do `.ornament`) i `.user-menu__ws-role` (mała etykieta roli, podobna do `.ws-label__role`) w `src/styles.css`
+- Opcjonalnie: usunąć lub ukryć sidebar switcher gdy UserMenu switcher jest dostępny (żeby uniknąć duplikacji) — ale można zostawić oba
+
+**Typ `Workspace`** jest eksportowany z `src/auth.tsx`, więc `ws.myRole`, `ws.name`, `ws.id` są dostępne.
+
+---
+
+### Pozostałe
+
 1. Token refresh: token GIS wygasa po 1h — teraz jest komunikat o wygaśnięciu, ale brak auto-refresh. Docelowo: wywołać `tokenClientRef.current.requestAccessToken({ prompt: '' })` w tle co ~50min i zaktualizować `_tokenRef` + `_tokenAge`.
 2. Rozbic `wedding-data.json` na osobne pliki domenowe:
    `guests.json`, `budget.json`, `tasks.json`, `vendors.json`, `tables.json`, `notes.json`, `settings.json`
