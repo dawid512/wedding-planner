@@ -343,7 +343,7 @@ Wniosek:
 9. ~~**Plan stołów — domyślny stół pary młodej**~~ ✅ ZROBIONE (2026-05-19) — stół "Para Młoda" capacity 2, guests: ["g1","g2"].
 10. ~~**Menu boczne**~~ ✅ ZROBIONE (2026-05-19) — usunięto blok "Współedytorzy" + "Zaproś osobę" z sidebar i dead code `activeCollab`/`collabCount`.
 11. **Obsługa zdjęć i grafik** — upload do folderu na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać file ID lub URL (nie base64, nie blob). Strategia: każdy user uploaduje do swojego `WeddingPlanner/attachments/`; linki współdzielone przez permissions Drive.
-12. **Domyślny plan przy starcie** — checkbox w ustawieniach: "Otwieraj domyślnie ten plan" (zapamiętany w `user-config.json`). Przy bootstrapDrive jeśli ustawiony — aktywować wskazany plan zamiast własnego.
+12. ~~**Domyślny plan przy starcie**~~ ✅ ZROBIONE (2026-05-19) — `defaultPlanId` w `UserConfig`, `setDefaultPlan()`, ★ w UserMenu, priorytet bootstrap.
 13. **RODO / cookies / zgody** — banner cookies, link do Privacy Policy, obsługa `localStorage` tylko po zgodzie, polityka przechowywania danych (wymagane przez Google OAuth verification).
 14. **Weryfikacja Google OAuth** — lista wymagań: hosted Privacy Policy URL, Terms of Service URL, opis zakresu `drive` w formularzu weryfikacji, ograniczenie scope do minimum (rozważyć powrót do `drive.file`), brand verification.
 
@@ -438,6 +438,16 @@ Wniosek:
 4. Zaktualizowano notę w `AuthScreen` z `drive.file` na `drive`.
 5. `npm run typecheck` przechodzi bez błędów.
 6. **WAŻNE dla istniejących użytkowników**: zmiana scope wymusi ponowny ekran zgody Google przy następnym logowaniu.
+
+### 2026-05-19 (TODO #12: Domyślny plan przy starcie)
+
+1. `UserConfig` interface — dodano `defaultPlanId?: string` (przechowywane w `user-config.json` na Drive użytkownika).
+2. `AuthState` — dodano `setDefaultPlan(wsId: string | null): void` i `defaultPlanId: string | null`.
+3. `useAuth` — dodano `configRef` (przechowuje bieżący config w pamięci), `defaultPlanId` state.
+4. `bootstrapDrive` — po załadowaniu config: zapisuje do `configRef`, aktualizuje `defaultPlanId` state; priorytet aktywacji: `config.defaultPlanId` > `savedActiveId` > `ownWs`.
+5. `setDefaultPlan(wsId)` — aktualizuje `configRef.current.defaultPlanId`, ustawia state i zapisuje do Drive asynchronicznie (silent fail).
+6. `UserMenu` — przy każdym workspace dodano przycisk ★ z tooltipem: gdy ustawiony jako domyślny → kolor `var(--accent)` i odznacza; gdy nie → kliknięcie ustawia; wewnątrz itemu badge ★ pomarańczowy gdy domyślny.
+7. `npm run typecheck` — 0 błędów.
 
 ### 2026-05-19 (TODO #10: Sidebar — usunięto Współedytorzy i Zaproś)
 

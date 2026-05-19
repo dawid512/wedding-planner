@@ -39,7 +39,8 @@ export interface GoogleUser {
  * Replaces the old localStorage guest plan storage — persists across devices.
  */
 interface UserConfig {
-  sharedPlans: string[]; // fileIds of shared plans
+  sharedPlans:   string[];  // fileIds of shared plans
+  defaultPlanId?: string;   // fileId of the plan to open by default on login
 }
 
 interface Collaborator {
@@ -90,6 +91,8 @@ export interface AuthState {
   updateActiveData: (data: AppData) => void;
   renameWorkspace: (name: string) => void;
   switchWorkspace: (wsId: string) => void;
+  setDefaultPlan: (wsId: string | null) => void;  // ustaw/wyczyść domyślny plan
+  defaultPlanId: string | null;                   // aktualnie ustawiony domyślny plan
   _loadGuestFile: (fileId: string) => Promise<void>;
   _clearDriveError: () => void;
   /**
@@ -201,10 +204,14 @@ function useAuth(): AuthState {
   const [userInfo,    setUserInfo]    = useState<GoogleUser | null>(null);
   const [needsPicker, setNeedsPicker] = useState<boolean>(false);
 
+  const [defaultPlanId, setDefaultPlanId] = useState<string | null>(null);
+
   const tokenClientRef   = useRef<TokenClient | null>(null);
   const timeoutRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeWsIdRef    = useRef<string | null>(null);
   activeWsIdRef.current  = activeWsId;
+  /** Cached current user-config.json content (to allow partial updates without re-reading) */
+  const configRef        = useRef<UserConfig>({ sharedPlans: [] });
   const fileIdRef        = useRef<string | null>(null);
   const ownFileIdRef     = useRef<string | null>(null);
   /** File ID of user-config.json in Drive — set during bootstrapDrive */
@@ -319,6 +326,8 @@ function useAuth(): AuthState {
       // 2. Load user-config.json — stores fileIds of shared plans (cross-device)
       const { config, configFileId } = await ensureUserConfig(token, folderId);
       configFileIdRef.current = configFileId;
+      configRef.current = config;
+      if (config.defaultPlanId) setDefaultPlanId(config.defaultPlanId);
 
       // 3. Load all known shared plans from user-config.json
       const loadedGuests: Workspace[] = [];
@@ -401,10 +410,12 @@ function useAuth(): AuthState {
       // setSession called last so React 18 batches all state updates → no intermediate flash.
       const allWorkspaces = [ownWs, ...loadedGuests];
 
-      // Restore the last active workspace (persisted across refreshes).
+      // Restore active workspace — priority: defaultPlanId > lastActiveId > ownWs
+      const defaultId     = config.defaultPlanId;
       const savedActiveId = localStorage.getItem(LS.activeWsId);
-      const restoredWs    = (savedActiveId ? allWorkspaces.find(w => w.id === savedActiveId) : null)
-                            ?? ownWs;
+      const restoredWs    = (defaultId     ? allWorkspaces.find(w => w.id === defaultId)     : null)
+                         ?? (savedActiveId ? allWorkspaces.find(w => w.id === savedActiveId) : null)
+                         ?? ownWs;
 
       setSession(info.email);
       setAllWs(allWorkspaces);
@@ -571,6 +582,21 @@ function useAuth(): AuthState {
   }, []);
 
   /**
+   * Set (or clear) the default plan — saved to user-config.json in Drive.
+   * On next login, bootstrapDrive will activate this plan automatically.
+   */
+  const setDefaultPlan = useCallback((wsId: string | null) => {
+    const token      = _tokenRef.current;
+    const configId   = configFileIdRef.current;
+    if (!token || !configId) return;
+
+    const newConfig: UserConfig = { ...configRef.current, defaultPlanId: wsId ?? undefined };
+    configRef.current = newConfig;
+    setDefaultPlanId(wsId);
+    updateJsonFile(token, configId, newConfig).catch(() => { /* silent */ });
+  }, []);
+
+  /**
    * Acquire the soft edit lock for the active workspace.
    *
    * Uses a write-then-verify strategy to detect simultaneous lock attempts
@@ -682,6 +708,7 @@ function useAuth(): AuthState {
     myRole,            canEdit,
     users,             workspaces: wsMap,
     googleLogin, logout, updateActiveData, renameWorkspace, switchWorkspace,
+    setDefaultPlan, defaultPlanId,
     acquireLock, releaseLock,
     login:                  () => ({ ok: true as const }),
     register:               () => ({ ok: true as const }),
@@ -692,6 +719,7 @@ function useAuth(): AuthState {
     session, isLoading, driveError, isGuest, needsPicker, fileId,
     activeWorkspace, userInfo, allWs, myRole, canEdit, users, wsMap,
     googleLogin, logout, updateActiveData, renameWorkspace, switchWorkspace,
+    setDefaultPlan, defaultPlanId,
     loadGuestFile, clearDriveError, acquireLock, releaseLock,
   ]);
 }
@@ -1168,21 +1196,41 @@ function UserMenu({ auth, onInviteClick }: UserMenuProps) {
             <>
               <div className="user-menu__section-label">Twoje plany</div>
               {auth.myWorkspaces.map(ws => {
-                const wsFull  = ws as Workspace;
-                const isActive = activeWs?.id === ws.id;
+                const wsFull    = ws as Workspace;
+                const isActive  = activeWs?.id === ws.id;
+                const isDefault = auth.defaultPlanId === ws.id;
                 const roleLabel = wsFull.myRole === "Właściciel" ? "Wł" : wsFull.myRole === "Edytor" ? "Ed" : "Pp";
                 return (
-                  <button
-                    key={ws.id}
-                    className={"user-menu__item" + (isActive ? " user-menu__item--active" : "")}
-                    onClick={() => { auth.switchWorkspace(ws.id); setOpen(false); }}
-                  >
-                    <span className="user-menu__ws-role">{roleLabel}</span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                      {ws.name}
-                    </span>
-                    {isActive && <Icon name="check" size={12} />}
-                  </button>
+                  <div key={ws.id} style={{ display: "flex", alignItems: "center" }}>
+                    <button
+                      className={"user-menu__item" + (isActive ? " user-menu__item--active" : "")}
+                      style={{ flex: 1 }}
+                      onClick={() => { auth.switchWorkspace(ws.id); setOpen(false); }}
+                    >
+                      <span className="user-menu__ws-role">{roleLabel}</span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                        {ws.name}
+                      </span>
+                      {isDefault && (
+                        <span title="Domyślny plan" style={{ color: "var(--accent)", fontSize: 12 }}>★</span>
+                      )}
+                      {isActive && !isDefault && <Icon name="check" size={12} />}
+                    </button>
+                    {/* Ustaw/wyczyść domyślny */}
+                    <button
+                      className="btn btn--ghost btn--icon"
+                      style={{ flexShrink: 0, width: 28, height: 28, padding: 0,
+                               color: isDefault ? "var(--accent)" : "var(--ink-faint)",
+                               fontSize: 14 }}
+                      title={isDefault ? "Usuń jako domyślny" : "Ustaw jako domyślny plan startowy"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        auth.setDefaultPlan(isDefault ? null : ws.id);
+                      }}
+                    >
+                      ★
+                    </button>
+                  </div>
                 );
               })}
               <div className="user-menu__div" />
