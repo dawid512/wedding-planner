@@ -215,6 +215,16 @@ export interface PaymentItem {
   note: string;
 }
 
+/**
+ * Soft edit lock — stored in wedding-data.json on Drive.
+ * Set when a user enters edit mode, cleared on save/cancel.
+ * TTL = 10 minutes (LOCK_TTL_MS in auth.tsx).
+ */
+export interface EditLock {
+  email: string;     // who is editing
+  lockedAt: number;  // Date.now() timestamp
+}
+
 export interface AppData {
   couple: CoupleInfo;
   tasks: Task[];
@@ -234,6 +244,8 @@ export interface AppData {
   music: MusicInfo;
   documents: DocumentsInfo;
   payments: PaymentItem[];
+  /** Soft edit lock — present while someone is in edit mode. */
+  _editLock?: EditLock;
 }
 
 // ============================================================

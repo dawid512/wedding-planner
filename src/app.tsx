@@ -1,6 +1,6 @@
 // Wedding Planner — main app shell (with auth + collaborators)
 
-import React, { useState as useS, useEffect as useE, useMemo as useM, useCallback as useC } from "react";
+import React, { useState as useS, useEffect as useE, useMemo as useM, useCallback as useC, useRef } from "react";
 import { EMPTY_DATA, PAGES, Icon } from "./core";
 import type { AppData, DataUpdater } from "./core";
 import { PageDashboard, PageTasks, PageBudget, PageGuests } from "./pages-1";
@@ -46,6 +46,11 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType<PlannerPageProps>> = {
 };
 
 const ROUTE_KEY = "wedding-planner-route-v1";
+
+// Inactivity timeouts while in edit mode
+const INACTIVITY_WARN_MS     = 8  * 60 * 1000; // 8 min — show warning
+const INACTIVITY_KICK_MS     = 10 * 60 * 1000; // 10 min — force exit
+const ACTIVITY_THROTTLE_MS   = 15_000;          // don't reset timers more than once per 15s
 
 function App() {
   const auth = useAuth() as PlannerAuth;
@@ -93,34 +98,140 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
   const ws = auth.activeWorkspace as Workspace;
   const savedData = useM<AppData>(() => ({ ...EMPTY_DATA, ...ws.data }), [ws]);
 
-  const [draftData, setDraftData] = useS<AppData | null>(null);
-  const [route, setRoute] = useS<string>(() => localStorage.getItem(ROUTE_KEY) || "dashboard");
-  const [sidebarOpen, setSidebarOpen] = useS(false);
-  const [inviteOpen, setInviteOpen] = useS(false);
+  const [draftData,     setDraftData]     = useS<AppData | null>(null);
+  const [route,         setRoute]         = useS<string>(() => localStorage.getItem(ROUTE_KEY) || "dashboard");
+  const [sidebarOpen,   setSidebarOpen]   = useS(false);
+  const [inviteOpen,    setInviteOpen]    = useS(false);
+  const [acquiringLock, setAcquiringLock] = useS(false);
+  const [lockError,     setLockError]     = useS<string | null>(null);
+  const [inactivityWarn, setInactivityWarn] = useS(false);
+
   const closeInvite = useC(() => setInviteOpen(false), []);
+
+  // Refs for stable access inside timers/event-handlers
+  const authRef          = useRef(auth);
+  authRef.current        = auth;
+  const warnTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const kickTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastActivityRef  = useRef<number>(0);
+  const editingRef       = useRef(false);
 
   useE(() => {
     localStorage.setItem(ROUTE_KEY, route);
     setSidebarOpen(false);
   }, [route]);
 
+  // When workspace changes — release lock if we were editing, reset draft
   useE(() => {
+    if (editingRef.current) {
+      authRef.current.releaseLock();
+    }
     setDraftData(null);
+    setLockError(null);
   }, [ws.id]);
 
   const editing = draftData !== null;
+  editingRef.current = editing;
+
   const data: AppData = editing ? draftData : savedData;
   const set = useC((updater: DataUpdater) => {
     if (!editing) return;
     setDraftData((prev) => typeof updater === "function" ? updater(prev as AppData) : updater);
   }, [editing]);
 
-  const startEdit  = () => setDraftData(JSON.parse(JSON.stringify(savedData)));
-  const cancelEdit = () => setDraftData(null);
-  const saveEdit   = () => {
-    auth.updateActiveData(draftData as AppData);
+  // ----------------------------------------------------------
+  // Inactivity timers
+  // ----------------------------------------------------------
+
+  const clearInactivityTimers = useC(() => {
+    if (warnTimerRef.current) { clearTimeout(warnTimerRef.current); warnTimerRef.current = null; }
+    if (kickTimerRef.current) { clearTimeout(kickTimerRef.current); kickTimerRef.current = null; }
+    setInactivityWarn(false);
+  }, []);
+
+  const resetInactivityTimers = useC(() => {
+    const now = Date.now();
+    // Throttle — don't reset more often than ACTIVITY_THROTTLE_MS
+    if (now - lastActivityRef.current < ACTIVITY_THROTTLE_MS) return;
+    lastActivityRef.current = now;
+
+    if (warnTimerRef.current) clearTimeout(warnTimerRef.current);
+    if (kickTimerRef.current) clearTimeout(kickTimerRef.current);
+    setInactivityWarn(false);
+
+    warnTimerRef.current = setTimeout(() => setInactivityWarn(true), INACTIVITY_WARN_MS);
+    kickTimerRef.current = setTimeout(() => {
+      // Force exit without save — release lock then clear draft
+      authRef.current.releaseLock();
+      setDraftData(null);
+      setInactivityWarn(false);
+    }, INACTIVITY_KICK_MS);
+  }, []);
+
+  // Start/stop timer watch when editing changes
+  useE(() => {
+    if (!editing) {
+      clearInactivityTimers();
+      return;
+    }
+    // Start fresh on entering edit mode
+    lastActivityRef.current = Date.now();
+    warnTimerRef.current = setTimeout(() => setInactivityWarn(true), INACTIVITY_WARN_MS);
+    kickTimerRef.current = setTimeout(() => {
+      authRef.current.releaseLock();
+      setDraftData(null);
+      setInactivityWarn(false);
+    }, INACTIVITY_KICK_MS);
+
+    // Activity listeners
+    const onActivity = () => resetInactivityTimers();
+    window.addEventListener("mousemove",  onActivity);
+    window.addEventListener("keydown",    onActivity);
+    window.addEventListener("click",      onActivity);
+    window.addEventListener("touchstart", onActivity);
+
+    return () => {
+      clearInactivityTimers();
+      window.removeEventListener("mousemove",  onActivity);
+      window.removeEventListener("keydown",    onActivity);
+      window.removeEventListener("click",      onActivity);
+      window.removeEventListener("touchstart", onActivity);
+    };
+  }, [editing, clearInactivityTimers, resetInactivityTimers]);
+
+  // ----------------------------------------------------------
+  // Edit actions
+  // ----------------------------------------------------------
+
+  const startEdit = useC(async () => {
+    setLockError(null);
+    setAcquiringLock(true);
+    const result = await authRef.current.acquireLock();
+    setAcquiringLock(false);
+    if (!result.ok) {
+      const who = result.lockedBy === "?" ? "innego użytkownika" : result.lockedBy;
+      setLockError(`Aktualnie edytuje: ${who}`);
+      return;
+    }
+    // Initialize draft from fresh savedData (acquireLock updated local state with fresh Drive data)
+    setDraftData(prev => prev ?? JSON.parse(JSON.stringify(savedData)));
+  }, [savedData]);
+
+  const cancelEdit = useC(() => {
+    authRef.current.releaseLock();
     setDraftData(null);
-  };
+    setInactivityWarn(false);
+    setLockError(null);
+  }, []);
+
+  const saveEdit = useC(() => {
+    // Strip _editLock from draft before saving — lock is cleared by overwriting data
+    const dataToSave = { ...(draftData as AppData) };
+    delete dataToSave._editLock;
+    authRef.current.updateActiveData(dataToSave);
+    setDraftData(null);
+    setInactivityWarn(false);
+  }, [draftData]);
 
   const PageComp    = PAGE_COMPONENTS[route] || PageDashboard;
   const currentPage = (PAGES as PageMetaWithNum[]).find((p) => p.id === route);
@@ -290,9 +401,22 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
               </button>
             )}
             {auth.canEdit && !editing && (
-              <button className="btn btn--primary" onClick={startEdit}>
-                <Icon name="edit" size={14} /> Edytuj
+              <button
+                className="btn btn--primary"
+                onClick={startEdit}
+                disabled={acquiringLock}
+                title={lockError ?? undefined}
+              >
+                {acquiringLock
+                  ? "Sprawdzanie…"
+                  : <><Icon name="edit" size={14} /> Edytuj</>
+                }
               </button>
+            )}
+            {lockError && !editing && (
+              <span className="lock-error-badge" title="Kliknij aby zamknąć" onClick={() => setLockError(null)}>
+                🔒 {lockError}
+              </span>
             )}
             {auth.canEdit && editing && (
               <React.Fragment>
@@ -312,6 +436,46 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
       </main>
 
       {inviteOpen && <InviteModal auth={auth} onClose={closeInvite} />}
+
+      {/* Inactivity warning — shown at 8 min, force-kick at 10 min */}
+      {inactivityWarn && editing && (
+        <div className="modal-scrim" style={{ zIndex: 9999 }}>
+          <div className="modal" style={{ maxWidth: 420, textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>⏱</div>
+            <h2 className="modal__title" style={{ marginBottom: 8 }}>
+              Brak aktywności
+            </h2>
+            <p className="muted" style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+              Za <strong>2 minuty</strong> tryb edycji zostanie wyłączony bez zapisu.<br />
+              Co chcesz zrobić?
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                className="btn btn--primary"
+                onClick={saveEdit}
+              >
+                <Icon name="save" size={14} /> Zapisz teraz
+              </button>
+              <button
+                className="btn"
+                onClick={() => {
+                  lastActivityRef.current = 0; // force reset
+                  resetInactivityTimers();
+                }}
+              >
+                <Icon name="edit" size={14} /> Zostań w edycji
+              </button>
+              <button
+                className="btn"
+                style={{ color: "var(--ink-soft)" }}
+                onClick={cancelEdit}
+              >
+                <Icon name="x" size={14} /> Anuluj bez zapisu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TweaksPanel title="Tweaks">
         <TweakSection label="Wygląd">

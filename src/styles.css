@@ -1385,6 +1385,29 @@ select.field__input {
   .collab-row > .tag { grid-column: 3; grid-row: 1; }
 }
 
+/* Lock error badge — shown next to Edit button when someone else is editing */
+.lock-error-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-theme="dark"] .lock-error-badge {
+  background: #3a2e00;
+  color: #ffd966;
+  border-color: #856404;
+}
+
 /* Drive error banner — shown above topbar when save/permission error occurs */
 .drive-error-banner {
   background: #fff3cd;

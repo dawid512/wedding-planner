@@ -92,6 +92,17 @@ export interface AuthState {
   switchWorkspace: (wsId: string) => void;
   _loadGuestFile: (fileId: string) => Promise<void>;
   _clearDriveError: () => void;
+  /**
+   * Try to acquire the edit lock for the current workspace.
+   * Reads fresh data from Drive to check for an active lock by someone else.
+   * Returns ok:true on success, ok:false with lockedBy email on conflict.
+   */
+  acquireLock: () => Promise<{ ok: true } | { ok: false; lockedBy: string }>;
+  /**
+   * Release the edit lock (on cancel or auto-kick).
+   * Reads fresh Drive data, strips _editLock, writes back.
+   */
+  releaseLock: () => void;
 
   // Stub backward compat
   login: (email: string, password: string) => AuthResult;
@@ -144,6 +155,8 @@ const LS = {
 
 const DATA_FILE   = "wedding-data.json";
 const CONFIG_FILE = "user-config.json"; // stores shared plan fileIds in Drive
+/** Edit lock TTL — lock older than this is considered expired and can be overridden. */
+const LOCK_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 // drive scope = full read/write to all Drive files the user has permission on.
 // drive.file alone was too restrictive: files shared via Drive API returned 404
@@ -557,6 +570,78 @@ function useAuth(): AuthState {
     }).catch(() => { /* silent */ });
   }, []);
 
+  /**
+   * Acquire the soft edit lock for the active workspace.
+   * Reads fresh data from Drive, checks if someone else holds a valid lock,
+   * then writes a new lock with the current user's email + timestamp.
+   */
+  const acquireLock = useCallback(async (): Promise<{ ok: true } | { ok: false; lockedBy: string }> => {
+    const t     = _tokenRef.current;
+    const fid   = fileIdRef.current;
+    const email = _tokenRef.current ? undefined : undefined; // resolved below
+    const wsId  = activeWsIdRef.current;
+
+    // Get current user email from state via allWs
+    let myEmail: string | undefined;
+    setAllWs(prev => {
+      myEmail = prev.find(w => w.id === wsId)?.ownerEmail
+        || localStorage.getItem(LS.email)
+        || undefined;
+      return prev;
+    });
+    myEmail = myEmail ?? localStorage.getItem(LS.email) ?? undefined;
+
+    if (!t || !fid || !myEmail) return { ok: false, lockedBy: "?" };
+
+    try {
+      const freshData = await readJsonFile<AppData>(t, fid);
+      const lock = freshData._editLock;
+
+      // Block if another user holds a valid (non-expired) lock
+      if (lock && lock.email !== myEmail && Date.now() - lock.lockedAt < LOCK_TTL_MS) {
+        return { ok: false, lockedBy: lock.email };
+      }
+
+      // Write lock to Drive
+      await updateJsonFile(t, fid, { ...freshData, _editLock: { email: myEmail, lockedAt: Date.now() } });
+
+      // Update local state with fresh data (preserves any remote changes)
+      setAllWs(prev => prev.map(w =>
+        w.id === wsId ? { ...w, data: { ...freshData, _editLock: { email: myEmail!, lockedAt: Date.now() } } } : w,
+      ));
+
+      return { ok: true };
+    } catch {
+      return { ok: false, lockedBy: "?" };
+    }
+  }, []);
+
+  /**
+   * Release the soft edit lock.
+   * Reads current Drive data, strips _editLock, writes back.
+   * Called on cancel-edit and on inactivity auto-kick.
+   */
+  const releaseLock = useCallback(() => {
+    const t   = _tokenRef.current;
+    const fid = fileIdRef.current;
+    const wsId = activeWsIdRef.current;
+    if (!t || !fid) return;
+
+    // Optimistic local state update — strip lock immediately
+    setAllWs(prev => prev.map(w => {
+      if (w.id !== wsId) return w;
+      const cleanData = { ...w.data };
+      delete cleanData._editLock;
+      // Fire-and-forget Drive update (read fresh → strip lock → write)
+      readJsonFile<AppData>(t, fid).then(freshData => {
+        const stripped = { ...freshData };
+        delete stripped._editLock;
+        return updateJsonFile(t, fid, stripped);
+      }).catch(() => { /* silent — lock will expire on its own via TTL */ });
+      return { ...w, data: cleanData };
+    }));
+  }, []);
+
   // ----------------------------------------------------------
   // Derived values
   // ----------------------------------------------------------
@@ -583,6 +668,7 @@ function useAuth(): AuthState {
     myRole,            canEdit,
     users,             workspaces: wsMap,
     googleLogin, logout, updateActiveData, renameWorkspace, switchWorkspace,
+    acquireLock, releaseLock,
     login:                  () => ({ ok: true as const }),
     register:               () => ({ ok: true as const }),
     addCollaborator:        () => ({ error: "Użyj panelu Zaproś" }),
@@ -592,7 +678,7 @@ function useAuth(): AuthState {
     session, isLoading, driveError, isGuest, needsPicker, fileId,
     activeWorkspace, userInfo, allWs, myRole, canEdit, users, wsMap,
     googleLogin, logout, updateActiveData, renameWorkspace, switchWorkspace,
-    loadGuestFile, clearDriveError,
+    loadGuestFile, clearDriveError, acquireLock, releaseLock,
   ]);
 }
 
