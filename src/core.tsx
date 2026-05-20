@@ -114,6 +114,8 @@ export interface InspirationItem {
   id: string;
   label: string;
   note: string;
+  /** Drive file ID of the uploaded photo, if any */
+  photoId?: string;
 }
 
 export interface GiftItem {

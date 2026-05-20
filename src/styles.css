@@ -719,6 +719,21 @@ select.field__input {
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
+.mood-card--add {
+  border: 1px dashed var(--line);
+  cursor: pointer;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.mood-card--add:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
 .mood-img {
   aspect-ratio: 4 / 5;
   background:
@@ -743,6 +758,70 @@ select.field__input {
   text-transform: uppercase;
   color: var(--ink-faint);
   margin-bottom: 4px;
+}
+
+/* ============================================================
+   PHOTO UPLOAD
+   ============================================================ */
+.photo-upload {
+  width: 100%;
+}
+.photo-upload__img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--line-soft);
+}
+.photo-upload__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photo-upload__del {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.photo-upload__img-wrap:hover .photo-upload__del { opacity: 1; }
+.photo-upload__drop {
+  aspect-ratio: 4 / 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.photo-upload__drop:hover,
+.photo-upload__drop--loading {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.photo-upload__icon { font-size: 28px; }
+.photo-upload__error {
+  font-size: 11px;
+  color: oklch(0.45 0.12 28);
+  padding: 4px 8px;
+  cursor: pointer;
 }
 
 /* placeholder image */

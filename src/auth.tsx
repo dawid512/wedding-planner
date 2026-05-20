@@ -143,6 +143,9 @@ const _tokenRef:  { current: string | null } = { current: null };
 /** Timestamp (Date.now()) of when the current token was set — used to detect expiry */
 const _tokenAge:  { current: number }        = { current: 0 };
 
+/** Read-only accessor for the current OAuth access token — for use by page components doing Drive uploads. */
+export function getAuthToken(): string | null { return _tokenRef.current; }
+
 // ============================================================
 // CONSTANTS
 // ============================================================

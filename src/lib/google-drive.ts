@@ -290,6 +290,89 @@ export async function listSharedFiles(
   return files || [];
 }
 
+// ============================================================
+// Image / Attachment uploads
+// ============================================================
+
+/**
+ * Find or create a subfolder inside a parent folder.
+ * Returns the subfolder ID.
+ */
+export async function findOrCreateSubfolder(
+  token: string,
+  parentFolderId: string,
+  name: string,
+): Promise<string> {
+  const q = `mimeType='application/vnd.google-apps.folder' and name='${name}' and '${parentFolderId}' in parents and trashed=false`;
+  const r = await fetch(
+    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!r.ok) throw new Error(`findOrCreateSubfolder search failed: ${r.status}`);
+  const { files } = (await r.json()) as { files?: { id: string }[] };
+  if (files && files.length > 0) return files[0].id;
+
+  // Create
+  const c = await fetch(`${DRIVE_API}/files`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name, mimeType: "application/vnd.google-apps.folder", parents: [parentFolderId] }),
+  });
+  if (!c.ok) throw new Error(`findOrCreateSubfolder create failed: ${c.status}`);
+  const { id } = (await c.json()) as { id: string };
+  return id;
+}
+
+/**
+ * Upload an image (File/Blob) to a Drive folder.
+ * Uses multipart upload — sends metadata + file body in one request.
+ * Returns the new file's Drive ID.
+ */
+export async function uploadImageToDrive(
+  token: string,
+  folderId: string,
+  file: File,
+): Promise<string> {
+  const metadata = JSON.stringify({
+    name: file.name,
+    parents: [folderId],
+  });
+
+  const form = new FormData();
+  form.append("metadata", new Blob([metadata], { type: "application/json" }));
+  form.append("file", file, file.name);
+
+  const r = await fetch(`${UPLOAD_API}/files?uploadType=multipart&fields=id`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!r.ok) throw new Error(`uploadImageToDrive failed: ${r.status}`);
+  const { id } = (await r.json()) as { id: string };
+  return id;
+}
+
+/**
+ * Return a thumbnail URL for a Drive file that the user can access.
+ * Works as long as the user is logged into Google in the same browser.
+ * sz=w800 gives a max 800px-wide image.
+ */
+export function getDriveThumbnailUrl(fileId: string, size = "w800"): string {
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=${size}`;
+}
+
+/**
+ * Delete a file from Drive.
+ * Used when removing a photo from an inspiration card.
+ */
+export async function deleteDriveFile(token: string, fileId: string): Promise<void> {
+  const r = await fetch(`${DRIVE_API}/files/${fileId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok && r.status !== 404) throw new Error(`deleteDriveFile failed: ${r.status}`);
+}
+
 /** Update an existing permission (change role). */
 export async function updatePermission(
   token: string,
