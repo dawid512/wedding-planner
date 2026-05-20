@@ -853,7 +853,8 @@ function AuthScreen({ auth }: AuthScreenProps) {
           <GoogleIcon />Zaloguj się przez Google
         </button>
         <div className="auth__note">
-          <span className="mono">Zakres: <code>drive</code> — odczyt i zapis plików na Twoim Google Drive.</span>
+          Aplikacja tworzy wyłącznie folder <code>WeddingPlanner/</code> na Twoim Google Drive
+          i zapisuje tam dane planu. Żadne dane nie trafiają na zewnętrzne serwery.
         </div>
         <div className="auth__legal">
           Logując się, akceptujesz{" "}
