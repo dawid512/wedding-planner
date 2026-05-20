@@ -4,7 +4,6 @@ import React, { useRef, useState, useCallback } from "react";
 import { getAuthToken } from "../auth";
 import {
   uploadImageToDrive,
-  getDriveThumbnailUrl,
   deleteDriveFile,
   findOrCreateFolder,
   findOrCreateSubfolder,
@@ -113,11 +112,53 @@ interface PhotoUploadProps {
 }
 
 export function PhotoUpload({ photoId, onChange, editing }: PhotoUploadProps) {
-  const inputRef  = useRef<HTMLInputElement>(null);
+  const inputRef             = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError]         = useState<string | null>(null);
+  // blobUrl — local object URL for display (works without cross-origin cookies)
+  const [blobUrl, setBlobUrl]     = useState<string | null>(null);
+  const prevBlobRef              = useRef<string | null>(null);
 
-  const thumbnailUrl = photoId ? getDriveThumbnailUrl(photoId, "w800") : null;
+  // Whenever photoId changes, fetch the image binary via Drive API with the auth token
+  // and convert to a blob URL. This avoids cookie-based thumbnail endpoints.
+  React.useEffect(() => {
+    // Revoke previous blob URL to free memory
+    if (prevBlobRef.current) {
+      URL.revokeObjectURL(prevBlobRef.current);
+      prevBlobRef.current = null;
+    }
+    if (!photoId) { setBlobUrl(null); return; }
+
+    let cancelled = false;
+    const token = getAuthToken();
+    if (!token) { setBlobUrl(null); return; }
+
+    fetch(`https://www.googleapis.com/drive/v3/files/${photoId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`fetch image failed: ${r.status}`);
+        return r.blob();
+      })
+      .then(blob => {
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        prevBlobRef.current = url;
+        setBlobUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setBlobUrl(null);
+      });
+
+    return () => { cancelled = true; };
+  }, [photoId]);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (prevBlobRef.current) URL.revokeObjectURL(prevBlobRef.current);
+    };
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -128,22 +169,31 @@ export function PhotoUpload({ photoId, onChange, editing }: PhotoUploadProps) {
     if (!token) { setError("Brak sesji — odśwież stronę."); return; }
     setUploading(true);
     setError(null);
+
+    // Instant local preview — show the file before upload finishes
+    const localUrl = URL.createObjectURL(file);
+    if (prevBlobRef.current) URL.revokeObjectURL(prevBlobRef.current);
+    prevBlobRef.current = localUrl;
+    setBlobUrl(localUrl);
+
     try {
       const folderId = await getAttachmentsFolderId(token);
       const newId    = await uploadImageToDrive(token, folderId, file);
       onChange(newId);
     } catch (err) {
       setError("Błąd uploadu — spróbuj ponownie.");
+      setBlobUrl(null);
       console.error("PhotoUpload error:", err);
     } finally {
       setUploading(false);
     }
   }, [onChange]);
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!photoId) return;
     const token = getAuthToken();
     if (token) deleteDriveFile(token, photoId).catch(() => {});
+    setBlobUrl(null);
     onChange(undefined);
   }, [photoId, onChange]);
 
@@ -158,15 +208,17 @@ export function PhotoUpload({ photoId, onChange, editing }: PhotoUploadProps) {
 
   return (
     <div className="photo-upload">
-      {thumbnailUrl && (
+      {blobUrl && (
         <div className="photo-upload__img-wrap">
           <img
-            src={thumbnailUrl}
+            src={blobUrl}
             alt="Zdjęcie inspiracji"
             className="photo-upload__img"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
-          {editing && (
+          {uploading && (
+            <div className="photo-upload__overlay">Przesyłanie…</div>
+          )}
+          {editing && !uploading && (
             <button
               className="photo-upload__del"
               onClick={handleDelete}
@@ -178,7 +230,7 @@ export function PhotoUpload({ photoId, onChange, editing }: PhotoUploadProps) {
         </div>
       )}
 
-      {editing && !photoId && (
+      {editing && !blobUrl && (
         <div
           className={"photo-upload__drop" + (uploading ? " photo-upload__drop--loading" : "")}
           onClick={() => !uploading && inputRef.current?.click()}
