@@ -1,0 +1,70 @@
+<svg width="512" height="512" viewBox="0 0 680 680" xmlns="http://www.w3.org/2000/svg">
+  <title>Wedding Planner</title>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="680" height="680" fill="#faf9f7"/>
+
+  <!-- Subtle diagonal lines -->
+  <line x1="0" y1="680" x2="680" y2="0" stroke="#e8e2da" stroke-width="0.5" opacity="0.4"/>
+  <line x1="-100" y1="680" x2="580" y2="0" stroke="#e8e2da" stroke-width="0.5" opacity="0.25"/>
+  <line x1="100" y1="680" x2="780" y2="0" stroke="#e8e2da" stroke-width="0.5" opacity="0.25"/>
+
+  <!-- Accent bars top & bottom -->
+  <rect x="0" y="0" width="680" height="6" fill="#b5603a"/>
+  <rect x="0" y="674" width="680" height="6" fill="#b5603a"/>
+
+  <!-- Left ring -->
+  <circle cx="290" cy="310" r="115" fill="none" stroke="#b5603a" stroke-width="18"/>
+
+  <!-- Right ring (behind left) -->
+  <circle cx="390" cy="310" r="115" fill="none" stroke="#b5603a" stroke-width="18" opacity="0.85"/>
+
+  <!-- Left ring top — appears in front (redrawn on top) -->
+  <clipPath id="leftTop">
+    <rect x="0" y="180" width="365" height="135"/>
+  </clipPath>
+  <circle cx="290" cy="310" r="115" fill="none" stroke="#b5603a" stroke-width="19" clip-path="url(#leftTop)"/>
+
+  <!-- Right ring bottom — appears in front -->
+  <clipPath id="rightBot">
+    <rect x="315" y="310" width="160" height="140"/>
+  </clipPath>
+  <circle cx="390" cy="310" r="115" fill="none" stroke="#b5603a" stroke-width="20" clip-path="url(#rightBot)"/>
+
+  <!-- Diamond accent at center intersection -->
+  <polygon points="340,284 354,310 340,336 326,310" fill="#b5603a"/>
+  <polygon points="340,294 349,310 340,326 331,310" fill="#faf9f7" opacity="0.35"/>
+
+  <!-- WEDDING text -->
+  <text x="340" y="510"
+    text-anchor="middle"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-style="italic"
+    font-size="38"
+    font-weight="400"
+    fill="#2a2520"
+    letter-spacing="0.22em">WEDDING</text>
+
+  <!-- PLANNER text -->
+  <text x="340" y="554"
+    text-anchor="middle"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-style="italic"
+    font-size="38"
+    font-weight="400"
+    fill="#b5603a"
+    letter-spacing="0.22em">PLANNER</text>
+
+  <!-- Rule under text -->
+  <line x1="180" y1="576" x2="500" y2="576" stroke="#b5603a" stroke-width="1" opacity="0.4"/>
+
+  <!-- Corner decorations -->
+  <line x1="40" y1="40" x2="80" y2="40" stroke="#b5603a" stroke-width="1.5" opacity="0.6"/>
+  <line x1="40" y1="40" x2="40" y2="80" stroke="#b5603a" stroke-width="1.5" opacity="0.6"/>
+  <line x1="640" y1="40" x2="600" y2="40" stroke="#b5603a" stroke-width="1.5" opacity="0.6"/>
+  <line x1="640" y1="40" x2="640" y2="80" stroke="#b5603a" stroke-width="1.5" opacity="0.6"/>
+  <line x1="40" y1="640" x2="80" y2="640" stroke="#b5603a" stroke-width="1.5" opacity="0.6"/>
+  <line x1="40" y1="640" x2="40" y2="600" stroke="#b5603a" stroke-width="1.5" opacity="0.6"/>
+  <line x1="640" y1="640" x2="600" y2="640" stroke="#b5603a" stroke-width="1.5" opacity="0.6"/>
+  <line x1="640" y1="640" x2="640" y2="600" stroke="#b5603a" stroke-width="1.5" opacity="0.6"/>
+</svg>

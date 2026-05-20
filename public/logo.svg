@@ -1,0 +1,37 @@
+<svg width="480" height="180" viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg">
+  <title>Wedding Planner</title>
+
+  <!-- Two interlocked rings (left side) -->
+  <circle cx="58" cy="90" r="42" fill="none" stroke="#b5603a" stroke-width="7"/>
+  <circle cx="88" cy="90" r="42" fill="none" stroke="#b5603a" stroke-width="7" opacity="0.85"/>
+  <!-- Left ring top front -->
+  <clipPath id="lt2">
+    <rect x="0" y="44" width="98" height="48"/>
+  </clipPath>
+  <circle cx="58" cy="90" r="42" fill="none" stroke="#b5603a" stroke-width="7.5" clip-path="url(#lt2)"/>
+  <!-- Right ring bottom front -->
+  <clipPath id="rb2">
+    <rect x="73" y="90" width="60" height="52"/>
+  </clipPath>
+  <circle cx="88" cy="90" r="42" fill="none" stroke="#b5603a" stroke-width="8" clip-path="url(#rb2)"/>
+  <!-- Diamond -->
+  <polygon points="73,80 80,90 73,100 66,90" fill="#b5603a"/>
+
+  <!-- Wordmark -->
+  <text x="148" y="78"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-style="italic"
+    font-size="40"
+    font-weight="400"
+    fill="#2a2520"
+    letter-spacing="0.04em">Wedding</text>
+  <text x="150" y="122"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="24"
+    font-weight="400"
+    fill="#6b6057"
+    letter-spacing="0.18em">PLANNER</text>
+
+  <!-- Thin accent line -->
+  <line x1="148" y1="132" x2="460" y2="132" stroke="#b5603a" stroke-width="0.8" opacity="0.4"/>
+</svg>
