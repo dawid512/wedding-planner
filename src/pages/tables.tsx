@@ -115,8 +115,8 @@ export function PageTables({ data, set, editing }: PageProps) {
                               <span style={{ color: "var(--ink)" }}>{g.name}</span>
                               {(g.guestType === "child_half" || g.guestType === "child_free") && <span className="tag" style={{ fontSize: 9, padding: "2px 6px" }}>dziecko</span>}
                               {g.side === "Obsługa" && <span className="tag" style={{ fontSize: 9, padding: "2px 6px" }}>obsługa</span>}
-                              {g.partnerId && guestById[g.partnerId]?.name && (
-                                <span className="mono muted" style={{ fontSize: 9 }} title={"Para: " + guestById[g.partnerId].name}>↔</span>
+                              {g.groupId && data.guests.some(x => x.id !== g.id && x.groupId === g.groupId && x.name) && (
+                                <span className="mono muted" style={{ fontSize: 9 }} title={"Grupa: " + data.guests.filter(x => x.id !== g.id && x.groupId === g.groupId && x.name).map(x => x.name).join(", ")}>↔</span>
                               )}
                             </span>
                           ) : (
