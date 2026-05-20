@@ -339,7 +339,7 @@ Wniosek:
 5. ~~**Strona Budżet — koszty automatyczne**~~ ✅ ZROBIONE (2026-05-19) — `calcVenueCosts()` w `core.tsx`; auto-wiersz "Sala weselna" w `budget.tsx`; wliczony do sum `plannedAll`/`actualAll`.
 6. ~~**Lista Gości — domyślne dane startowe**~~ ✅ ZROBIONE (2026-05-19) — g1 "Panna Młoda" + g2 "Pan Młody", RSVP Potwierdzony, sparowane ze sobą.
 7. ~~**Lista Gości — uproszczenie**~~ ✅ ZROBIONE (2026-05-19) — `plusone`, `needsTransport`, `giftReceived` usunięte z `Guest` interface, `EMPTY_DATA` i `addGuest`.
-8. ~~**Lista Gości — parowanie gości**~~ ✅ ZROBIONE (2026-05-19) — `partnerId?: string` w `Guest`, `pair`/`unpair`, `buildOrderedGuests`, badge ↔, plan stołów też.
+8. ~~**Lista Gości — parowanie gości**~~ ✅ ZAKTUALIZOWANE (2026-05-20) — `groupId?: string` (zastąpił `partnerId`); grupy >2 osób; 8-kolorowa paleta (distinct kolor per grupę); etykiety 100%/50%/0%; bez dropdownu "Strona" w edycji; parowanie tylko w obrębie tej samej strony; UI: "↔ Sparuj" / "Wyjdź z grupy" / "+ Dodaj do grupy".
 9. ~~**Plan stołów — domyślny stół pary młodej**~~ ✅ ZROBIONE (2026-05-19) — stół "Para Młoda" capacity 2, guests: ["g1","g2"].
 10. ~~**Menu boczne**~~ ✅ ZROBIONE (2026-05-19) — usunięto blok "Współedytorzy" + "Zaproś osobę" z sidebar i dead code `activeCollab`/`collabCount`.
 11. **Obsługa zdjęć i grafik** — upload do folderu na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać file ID lub URL (nie base64, nie blob). Strategia: każdy user uploaduje do swojego `WeddingPlanner/attachments/`; linki współdzielone przez permissions Drive.

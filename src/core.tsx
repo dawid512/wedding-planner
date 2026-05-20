@@ -48,7 +48,7 @@ export interface Guest {
   address: string;
   needsAccommodation: boolean;
   poprawiny: boolean;
-  groupId?: string;    // Wspólne ID grupy (para, rodzina); wszyscy członkowie mają ten sam groupId
+  partnerId?: string;  // ID drugiej osoby w parze (bidirectional)
 }
 
 export interface VenueSettings {
@@ -285,8 +285,8 @@ const EMPTY_DATA: AppData = {
   ],
   // guests — para młoda jako pierwsze wpisy (sparowane ze sobą, potwierdzone)
   guests: [
-    { id: "g1", name: "Panna Młoda", side: "Panna młoda", rsvp: "Potwierdzony", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false, groupId: "pg-default" },
-    { id: "g2", name: "Pan Młody",   side: "Pan młody",   rsvp: "Potwierdzony", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false, groupId: "pg-default" },
+    { id: "g1", name: "Panna Młoda", side: "Panna młoda", rsvp: "Potwierdzony", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false, partnerId: "g2" },
+    { id: "g2", name: "Pan Młody",   side: "Pan młody",   rsvp: "Potwierdzony", diet: "", guestType: "adult" as GuestType, phone: "", address: "", needsAccommodation: false, poprawiny: false, partnerId: "g1" },
   ],
   // tables — stół pary młodej 2-osobowy z g1/g2, potem puste stoły na gości
   tables: [
