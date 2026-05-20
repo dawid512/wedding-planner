@@ -108,8 +108,16 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
   const [acquiringLock, setAcquiringLock] = useS(false);
   const [lockError,     setLockError]     = useS<string | null>(null);
   const [inactivityWarn, setInactivityWarn] = useS(false);
+  const [showScrollTop, setShowScrollTop] = useS(false);
 
   const closeInvite = useC(() => setInviteOpen(false), []);
+
+  // Scroll-to-top button — show after scrolling down 300px
+  useE(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 300);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Refs for stable access inside timers/event-handlers
   const authRef          = useRef(auth);
@@ -437,6 +445,18 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
       </main>
 
       {inviteOpen && <InviteModal auth={auth} onClose={closeInvite} />}
+
+      {/* Scroll-to-top button */}
+      {showScrollTop && (
+        <button
+          className="scroll-top-btn"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          title="Wróć na górę"
+          aria-label="Wróć na górę"
+        >
+          <Icon name="chev-up" size={22} />
+        </button>
+      )}
 
       {/* Inactivity warning — shown at 8 min, force-kick at 10 min */}
       {inactivityWarn && editing && (
