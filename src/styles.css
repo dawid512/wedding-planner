@@ -1614,3 +1614,96 @@ body { overflow-x: hidden; max-width: 100vw; }
   /* Brand in sidebar — smaller */
   .brand__names { font-size: 22px; }
 }
+
+/* ============================================================
+   MOBILE UI — TODO #2 (2026-05-20)
+   Comprehensive mobile fixes: topbar, grids, tables, stats
+   ============================================================ */
+
+/* Mobile edit bar — hidden on desktop, shown on ≤640px */
+.mobile-editbar { display: none; }
+
+/* Venue/calculator grid utilities — collapse to 1 col on narrow */
+.venue-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.venue-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Wide table — for many-column tables like guests */
+.tbl--wide { min-width: 720px; }
+
+/* ── 700px — fix .row inline-style grid overrides ──────────── */
+/* inline style={{ gridTemplateColumns }} beats media queries;
+   !important restores the single-column layout on narrow screens */
+@media (max-width: 700px) {
+  .row { grid-template-columns: 1fr !important; gap: 4px; }
+  .venue-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── 640px — consolidate topbar, fix grids ──────────────────── */
+@media (max-width: 640px) {
+  /* Hide desktop topbar entirely — replaced by mobile-topbar + mobile-editbar */
+  .topbar { display: none !important; }
+
+  /* Show mobile edit bar below the sticky mobile-topbar */
+  .mobile-editbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    flex-wrap: wrap;
+  }
+  .mobile-editbar .btn { min-height: 36px; }
+
+  /* Collapse venue grids to single column */
+  .venue-grid { grid-template-columns: 1fr; }
+  .venue-2col { grid-template-columns: 1fr; }
+
+  /* Tighter card padding */
+  .card { padding: 14px 12px; }
+
+  /* Budget/KPI grid — 2 cols on phone */
+  .grid--3 { grid-template-columns: repeat(2, 1fr) !important; }
+  .kpi { padding: 14px 16px; }
+
+  /* Section spacing */
+  .section { margin-bottom: 28px; }
+  .section__title { font-size: 18px; }
+
+  /* Tighter table cells on narrow */
+  .tbl th, .tbl td { padding: 8px 8px; }
+  .tbl { font-size: 13px; }
+}
+
+/* ── 480px — page stats horizontal scroll, misc ─────────────── */
+@media (max-width: 480px) {
+  /* Stats bar: scroll horizontally instead of wrapping onto many rows */
+  .page__stats {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 6px;
+    margin-right: -12px; /* bleed to edge */
+  }
+  .stat { flex-shrink: 0; min-width: 48px; }
+
+  /* UserMenu popup — don't clip off right on narrow */
+  .user-menu__pop { right: -14px; width: min(260px, calc(100vw - 16px)); }
+
+  /* Tables — allow extra compact cells */
+  .tbl th, .tbl td { padding: 6px 6px; font-size: 12px; }
+
+  /* Hero compact */
+  .hero__meta { display: none; }
+  .countdown__num { font-size: 28px; }
+  .countdown__cell { padding: 0 8px; }
+}

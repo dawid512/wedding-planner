@@ -214,7 +214,7 @@ export function PageGuests({ data, set, editing }: PageProps) {
 
       {/* Venue settings + cost calculator */}
       <div className="card mb-24">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+        <div className="venue-grid">
           <div>
             <div className="row__label" style={{ marginBottom: 6 }}>Cena talerzyk (sala)</div>
             {editing ? (
@@ -257,7 +257,7 @@ export function PageGuests({ data, set, editing }: PageProps) {
         </div>
 
         {pp > 0 && active.length > 0 && (
-          <div style={{ borderTop: "1px solid var(--line-soft)", paddingTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="venue-2col" style={{ borderTop: "1px solid var(--line-soft)", paddingTop: 14 }}>
             <div>
               <div className="row__label" style={{ marginBottom: 8 }}>Kalkulator kosztów sali</div>
               <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
@@ -337,7 +337,7 @@ export function PageGuests({ data, set, editing }: PageProps) {
               <span className="section__hint">{groupNamed} {groupNamed === 1 ? "osoba" : "osób"}</span>
             </div>
             <div className="card" style={{ padding: 0 }}>
-              <table className="tbl">
+              <table className="tbl tbl--wide">
                 <thead>
                   <tr>
                     <th style={{ width: 40 }}>#</th>

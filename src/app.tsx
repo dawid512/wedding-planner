@@ -277,7 +277,7 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
                 <button
                   key={page.id}
                   className={"nav__item " + (route === page.id ? "is-active" : "")}
-                  onClick={() => setRoute(page.id)}
+                  onClick={() => { setRoute(page.id); setSidebarOpen(false); }}
                 >
                   <span className="nav__num">{String(page.num).padStart(2, "0")}</span>
                   <span>{page.label}</span>
@@ -330,6 +330,40 @@ function PlannerApp({ auth, tweaks, setTweak }: PlannerAppProps) {
             {savedData.couple.partner1 || "Imię"} <span style={{ color: "var(--accent)" }}>&amp;</span> {savedData.couple.partner2 || "Imię"}
           </div>
           <UserMenu auth={auth} onInviteClick={() => setInviteOpen(true)} />
+        </div>
+
+        {/* Mobile edit/action bar — visible only on ≤640px, replaces desktop topbar */}
+        <div className="mobile-editbar">
+          {auth.canEdit && !editing && (
+            <button className="btn btn--primary btn--small" onClick={startEdit} disabled={acquiringLock}>
+              {acquiringLock ? "…" : <><Icon name="edit" size={12} /> Edytuj</>}
+            </button>
+          )}
+          {auth.canEdit && editing && (
+            <React.Fragment>
+              <span className="edit-badge" style={{ fontSize: 10, padding: "3px 8px" }}>Edycja</span>
+              <button className="btn btn--small" onClick={cancelEdit}>
+                <Icon name="x" size={12} /> Anuluj
+              </button>
+              <button className="btn btn--primary btn--small" onClick={saveEdit}>
+                <Icon name="save" size={12} /> Zapisz
+              </button>
+            </React.Fragment>
+          )}
+          {lockError && !editing && (
+            <span className="lock-error-badge" style={{ fontSize: 10, maxWidth: 160 }} onClick={() => setLockError(null)}>
+              🔒 {lockError}
+            </span>
+          )}
+          {!auth.canEdit && <span className="viewer-banner" style={{ fontSize: 10 }}>Tylko podgląd</span>}
+          <button
+            className="btn btn--ghost btn--icon"
+            style={{ marginLeft: "auto" }}
+            onClick={() => setTweak("theme", tweaks.theme === "light" ? "dark" : "light")}
+            title={tweaks.theme === "light" ? "Tryb ciemny" : "Tryb jasny"}
+          >
+            <Icon name={tweaks.theme === "light" ? "moon" : "sun"} />
+          </button>
         </div>
 
         {auth.driveError && (
