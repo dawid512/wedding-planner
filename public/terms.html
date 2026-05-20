@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Regulamin — Wedding Planner</title>
+  <style>
+    :root {
+      --bg: #faf9f7;
+      --ink: #2a2520;
+      --ink-soft: #6b6057;
+      --accent: #b5603a;
+      --line: #e8e2da;
+      --paper: #fffefb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1a17;
+        --ink: #f0ebe4;
+        --ink-soft: #a09488;
+        --accent: #d07a50;
+        --line: #2e2924;
+        --paper: #252118;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Outfit", "Inter", -apple-system, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    header a:hover { text-decoration: underline; }
+    .brand {
+      font-family: Georgia, serif;
+      font-style: italic;
+      font-size: 20px;
+      color: var(--ink);
+    }
+    .brand span { color: var(--accent); }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 60px 40px 100px;
+    }
+    h1 {
+      font-family: Georgia, serif;
+      font-size: 40px;
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.1;
+      margin-bottom: 12px;
+      color: var(--ink);
+    }
+    .meta {
+      font-size: 13px;
+      color: var(--ink-soft);
+      margin-bottom: 48px;
+      font-family: monospace;
+      letter-spacing: 0.06em;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 40px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    p { margin-bottom: 16px; color: var(--ink); }
+    ul { margin: 0 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    a { color: var(--accent); }
+    code {
+      font-family: monospace;
+      font-size: 13px;
+      background: var(--line);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .highlight {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
+      padding: 16px 20px;
+      border-radius: 4px;
+      margin: 24px 0;
+      font-size: 15px;
+    }
+    footer {
+      text-align: center;
+      padding: 40px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+    @media (max-width: 600px) {
+      header { padding: 16px 20px; }
+      main { padding: 40px 20px 80px; }
+      h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Wedding <span>&amp;</span> Planner</div>
+    <a href="./">← Wróć do aplikacji</a>
+  </header>
+
+  <main>
+    <h1>Regulamin <em>Usługi</em></h1>
+    <p class="meta">Ostatnia aktualizacja: 20 maja 2026 r.</p>
+
+    <div class="highlight">
+      <strong>W skrócie:</strong> Wedding Planner to bezpłatne narzędzie do planowania ślubu. Dane przechowujesz na własnym Google Drive. Korzystaj odpowiedzialnie — nie ponosimy odpowiedzialności za treści, które wprowadzasz.
+    </div>
+
+    <h2>1. Postanowienia ogólne</h2>
+    <p>
+      Niniejszy Regulamin określa zasady korzystania z aplikacji internetowej Wedding Planner (dalej: „Aplikacja"), dostępnej pod adresem domeny serwisu. Aplikacja jest narzędziem frontendowym (Single Page Application) działającym w przeglądarce internetowej.
+    </p>
+    <p>
+      Korzystając z Aplikacji, akceptujesz niniejszy Regulamin. Jeśli nie zgadzasz się z jego treścią, prosimy o zaprzestanie korzystania z Aplikacji.
+    </p>
+
+    <h2>2. Opis usługi</h2>
+    <p>
+      Wedding Planner to bezpłatna aplikacja umożliwiająca:
+    </p>
+    <ul>
+      <li>planowanie budżetu weselnego i śledzenia wydatków,</li>
+      <li>zarządzania listą gości i potwierdzeniami obecności,</li>
+      <li>tworzenia planu stołów i rozmieszczenia gości,</li>
+      <li>organizacji harmonogramu dnia ślubu,</li>
+      <li>prowadzenia listy dostawców i usługodawców,</li>
+      <li>współdzielenia planu weselnego z wybranymi osobami przez Google Drive.</li>
+    </ul>
+    <p>
+      Wszystkie dane planu weselnego przechowywane są wyłącznie na Twoim koncie Google Drive. Aplikacja nie posiada własnej bazy danych ani serwerów przechowujących dane użytkowników.
+    </p>
+
+    <h2>3. Warunki korzystania</h2>
+    <p>
+      Z Aplikacji mogą korzystać osoby posiadające konto Google. Korzystanie z Aplikacji wymaga zalogowania się przy użyciu Google OAuth 2.0 i udzielenia zgody na dostęp do Google Drive w celu przechowywania danych planu.
+    </p>
+    <p>Użytkownik zobowiązuje się do:</p>
+    <ul>
+      <li>korzystania z Aplikacji zgodnie z obowiązującym prawem i niniejszym Regulaminem,</li>
+      <li>nieprzetwarzania w Aplikacji danych wrażliwych w rozumieniu art. 9 RODO (np. danych zdrowotnych, religijnych),</li>
+      <li>nieudostępniania danych dostępowych do swojego konta Google osobom trzecim,</li>
+      <li>nieużywania Aplikacji do celów niezgodnych z prawem lub do naruszania praw innych osób.</li>
+    </ul>
+
+    <h2>4. Bezpłatność usługi</h2>
+    <p>
+      Aplikacja jest udostępniana bezpłatnie. Nie pobieramy żadnych opłat za korzystanie z Aplikacji. Zastrzegamy sobie prawo do zmiany modelu finansowania w przyszłości — o wszelkich zmianach poinformujemy z odpowiednim wyprzedzeniem.
+    </p>
+
+    <h2>5. Dostępność i ciągłość usługi</h2>
+    <p>
+      Staramy się zapewnić jak najwyższą dostępność Aplikacji, jednak nie gwarantujemy nieprzerwanego działania. Aplikacja może być niedostępna w związku z pracami konserwacyjnymi, aktualizacjami lub awariami technicznymi, w tym awariami usług Google.
+    </p>
+    <p>
+      Ponieważ dane są przechowywane na Twoim Google Drive, ich dostępność zależy również od dostępności usług Google LLC. Nie ponosimy odpowiedzialności za przerwy w działaniu usług Google.
+    </p>
+
+    <h2>6. Odpowiedzialność</h2>
+    <p>
+      Aplikacja jest udostępniana w stanie „takim, jaki jest" (<em>as is</em>), bez jakichkolwiek gwarancji co do jej przydatności do określonego celu. W zakresie dopuszczalnym przez prawo nie ponosimy odpowiedzialności za:
+    </p>
+    <ul>
+      <li>utratę danych spowodowaną usunięciem plików z Google Drive przez użytkownika lub awarią usług Google,</li>
+      <li>szkody powstałe w wyniku nieprawidłowego korzystania z Aplikacji,</li>
+      <li>treści wprowadzane przez użytkownika do Aplikacji,</li>
+      <li>decyzje podjęte na podstawie informacji zawartych w Aplikacji.</li>
+    </ul>
+
+    <h2>7. Dane osobowe i prywatność</h2>
+    <p>
+      Zasady przetwarzania danych osobowych opisane są w <a href="./privacy-policy.html">Polityce Prywatności</a>, która stanowi integralną część niniejszego Regulaminu.
+    </p>
+
+    <h2>8. Prawa własności intelektualnej</h2>
+    <p>
+      Kod źródłowy Aplikacji jest własnością jej twórcy. Treści wprowadzane przez użytkownika do Aplikacji (lista gości, budżet, notatki itp.) pozostają własnością użytkownika i są przechowywane wyłącznie na jego Google Drive.
+    </p>
+
+    <h2>9. Zmiany Regulaminu</h2>
+    <p>
+      Zastrzegamy sobie prawo do zmiany niniejszego Regulaminu. O istotnych zmianach poinformujemy przez aktualizację daty na tej stronie. Dalsze korzystanie z Aplikacji po wprowadzeniu zmian oznacza ich akceptację.
+    </p>
+
+    <h2>10. Postanowienia końcowe</h2>
+    <p>
+      W sprawach nieuregulowanych niniejszym Regulaminem zastosowanie mają przepisy prawa polskiego, w szczególności Kodeksu cywilnego oraz ustawy o świadczeniu usług drogą elektroniczną.
+    </p>
+    <p>
+      Wszelkie pytania i uwagi dotyczące Regulaminu prosimy kierować na adres:
+      <a href="mailto:dawid.medrala.98@gmail.com">dawid.medrala.98@gmail.com</a>
+    </p>
+  </main>
+
+  <footer>
+    <p>© 2026 Wedding Planner · <a href="./privacy-policy.html">Polityka Prywatności</a> · <a href="./terms.html">Regulamin</a></p>
+  </footer>
+</body>
+</html>

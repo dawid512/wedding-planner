@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Polityka Prywatności — Wedding Planner</title>
+  <style>
+    :root {
+      --bg: #faf9f7;
+      --ink: #2a2520;
+      --ink-soft: #6b6057;
+      --accent: #b5603a;
+      --line: #e8e2da;
+      --paper: #fffefb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1a17;
+        --ink: #f0ebe4;
+        --ink-soft: #a09488;
+        --accent: #d07a50;
+        --line: #2e2924;
+        --paper: #252118;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Outfit", "Inter", -apple-system, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    header a:hover { text-decoration: underline; }
+    .brand {
+      font-family: Georgia, serif;
+      font-style: italic;
+      font-size: 20px;
+      color: var(--ink);
+    }
+    .brand span { color: var(--accent); }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 60px 40px 100px;
+    }
+    h1 {
+      font-family: Georgia, serif;
+      font-size: 40px;
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.1;
+      margin-bottom: 12px;
+      color: var(--ink);
+    }
+    .meta {
+      font-size: 13px;
+      color: var(--ink-soft);
+      margin-bottom: 48px;
+      font-family: monospace;
+      letter-spacing: 0.06em;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 40px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    p { margin-bottom: 16px; color: var(--ink); }
+    ul { margin: 0 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    a { color: var(--accent); }
+    code {
+      font-family: monospace;
+      font-size: 13px;
+      background: var(--line);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .highlight {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
+      padding: 16px 20px;
+      border-radius: 4px;
+      margin: 24px 0;
+      font-size: 15px;
+    }
+    footer {
+      text-align: center;
+      padding: 40px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+    @media (max-width: 600px) {
+      header { padding: 16px 20px; }
+      main { padding: 40px 20px 80px; }
+      h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Wedding <span>&amp;</span> Planner</div>
+    <a href="./">← Wróć do aplikacji</a>
+  </header>
+
+  <main>
+    <h1>Polityka <em>Prywatności</em></h1>
+    <p class="meta">Ostatnia aktualizacja: 20 maja 2026 r.</p>
+
+    <div class="highlight">
+      <strong>W skrócie:</strong> Wedding Planner przechowuje wszystkie Twoje dane wyłącznie na Twoim koncie Google Drive. Nie posiadamy własnych serwerów z danymi użytkowników, nie sprzedajemy danych i nie wyświetlamy reklam.
+    </div>
+
+    <h2>1. Administrator danych</h2>
+    <p>
+      Aplikacja Wedding Planner jest narzędziem frontendowym (SPA — Single Page Application) działającym bezpośrednio w przeglądarce. Nie posiadamy serwera backendowego przechowującego dane osobowe użytkowników.
+    </p>
+    <p>
+      W sprawach dotyczących danych osobowych możesz skontaktować się z nami pod adresem:
+      <a href="mailto:dawid.medrala.98@gmail.com">dawid.medrala.98@gmail.com</a>
+    </p>
+
+    <h2>2. Jakie dane przetwarzamy</h2>
+    <p>Podczas korzystania z aplikacji przetwarzane są następujące dane:</p>
+    <ul>
+      <li><strong>Dane konta Google</strong> — adres e-mail, imię i nazwisko, zdjęcie profilowe (pobierane przez Google Identity Services przy logowaniu)</li>
+      <li><strong>Dane planu weselnego</strong> — wszystkie informacje wprowadzone przez Ciebie (lista gości, budżet, harmonogram, dostawcy itp.) przechowywane w pliku <code>wedding-data.json</code> na Twoim Google Drive</li>
+      <li><strong>Dane konfiguracyjne</strong> — preferencje aplikacji (np. domyślny plan) przechowywane w pliku <code>user-config.json</code> na Twoim Google Drive</li>
+      <li><strong>Dane lokalne przeglądarki</strong> — identyfikatory sesji i ostatnio wybranego planu przechowywane w <code>localStorage</code> Twojej przeglądarki (nie są to pliki cookies)</li>
+    </ul>
+
+    <h2>3. Cel i podstawa prawna przetwarzania</h2>
+    <p>Dane są przetwarzane wyłącznie w celu:</p>
+    <ul>
+      <li>Umożliwienia logowania przez Google OAuth 2.0 (podstawa: zgoda — art. 6 ust. 1 lit. a RODO)</li>
+      <li>Przechowywania i synchronizacji planu weselnego między urządzeniami (podstawa: wykonanie umowy/usługi — art. 6 ust. 1 lit. b RODO)</li>
+      <li>Umożliwienia współpracy — udostępniania planu wybranym osobom przez Google Drive</li>
+    </ul>
+
+    <h2>4. Gdzie przechowywane są dane</h2>
+    <p>
+      Wszystkie dane planu weselnego przechowywane są wyłącznie na <strong>Twoim koncie Google Drive</strong> — aplikacja nie posiada własnej bazy danych. Dane podlegają polityce prywatności Google: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a>
+    </p>
+    <p>
+      Dane w <code>localStorage</code> przeglądarki zawierają wyłącznie identyfikatory techniczne (ID pliku, ID ostatnio wybranego workspace) i są usuwane po wylogowaniu.
+    </p>
+
+    <h2>5. Udostępnianie danych</h2>
+    <p>
+      Dane <strong>nie są</strong> udostępniane żadnym stronom trzecim poza Google LLC (jako dostawca Google Drive i OAuth). Nie wyświetlamy reklam, nie przekazujemy danych reklamodawcom ani innym podmiotom.
+    </p>
+
+    <h2>6. Zakres uprawnień Google (OAuth Scopes)</h2>
+    <p>Aplikacja prosi o następujący zakres uprawnień:</p>
+    <ul>
+      <li><code>https://www.googleapis.com/auth/drive</code> — dostęp do plików Google Drive w celu odczytu i zapisu pliku z danymi planu weselnego</li>
+      <li><code>openid</code>, <code>email</code>, <code>profile</code> — identyfikacja użytkownika (imię, email, zdjęcie)</li>
+    </ul>
+    <p>
+      Aplikacja używa dostępu do Google Drive wyłącznie do tworzenia i modyfikowania własnych plików (<code>wedding-data.json</code>, <code>user-config.json</code>) w folderze <code>WeddingPlanner</code> na Twoim Drive.
+    </p>
+
+    <h2>7. Czas przechowywania danych</h2>
+    <p>
+      Dane na Google Drive przechowywane są do momentu, gdy sam je usuniesz — aplikacja nie usuwa automatycznie plików z Twojego Drive. Dane w <code>localStorage</code> są usuwane przy wylogowaniu lub czyszczeniu danych przeglądarki.
+    </p>
+
+    <h2>8. Twoje prawa (RODO)</h2>
+    <p>Jako osoba, której dane dotyczą, masz prawo do:</p>
+    <ul>
+      <li><strong>Dostępu</strong> do swoich danych — wszystkie dane widoczne są bezpośrednio na Twoim Google Drive</li>
+      <li><strong>Sprostowania</strong> — możesz edytować dane bezpośrednio w aplikacji</li>
+      <li><strong>Usunięcia</strong> — usuń folder <code>WeddingPlanner</code> z Google Drive, a następnie wyloguj się z aplikacji</li>
+      <li><strong>Przenoszenia danych</strong> — plik <code>wedding-data.json</code> w formacie JSON na Twoim Drive</li>
+      <li><strong>Cofnięcia zgody</strong> — odwołaj uprawnienia aplikacji w <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">ustawieniach konta Google</a></li>
+    </ul>
+
+    <h2>9. Pliki cookies i localStorage</h2>
+    <p>
+      Aplikacja <strong>nie używa plików cookies</strong>. Używamy wyłącznie <code>localStorage</code> przeglądarki do przechowywania danych sesji (identyfikatory techniczne). <code>localStorage</code> nie jest przesyłany do żadnego serwera i pozostaje wyłącznie na Twoim urządzeniu.
+    </p>
+
+    <h2>10. Bezpieczeństwo</h2>
+    <p>
+      Aplikacja działa całkowicie po stronie przeglądarki (frontend-only). Tokeny OAuth są przechowywane w pamięci przeglądarki (nie w cookies ani localStorage) i wygasają automatycznie. Komunikacja z Google Drive odbywa się przez szyfrowane połączenie HTTPS.
+    </p>
+
+    <h2>11. Zmiany w polityce prywatności</h2>
+    <p>
+      O wszelkich istotnych zmianach w polityce prywatności poinformujemy przez aktualizację daty na tej stronie. Dalsze korzystanie z aplikacji po wprowadzeniu zmian oznacza akceptację nowej polityki.
+    </p>
+
+    <h2>12. Kontakt</h2>
+    <p>
+      W sprawach dotyczących prywatności: <a href="mailto:dawid.medrala.98@gmail.com">dawid.medrala.98@gmail.com</a>
+    </p>
+  </main>
+
+  <footer>
+    <p>© 2026 Wedding Planner · <a href="./privacy-policy.html">Polityka Prywatności</a> · <a href="./terms.html">Regulamin</a></p>
+  </footer>
+</body>
+</html>

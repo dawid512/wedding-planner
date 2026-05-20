@@ -1109,6 +1109,62 @@ select.field__input {
   line-height: 1.6;
   color: var(--ink-soft);
 }
+.auth__legal {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+.auth__legal a { color: var(--accent); text-decoration: none; }
+.auth__legal a:hover { text-decoration: underline; }
+
+/* ============================================================
+   CONSENT BANNER
+   ============================================================ */
+.consent-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9000;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 -4px 24px oklch(0.4 0.04 60 / 0.1);
+}
+.consent-banner__text {
+  flex: 1;
+  min-width: 200px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.consent-banner__text a { color: var(--accent); text-decoration: none; }
+.consent-banner__text a:hover { text-decoration: underline; }
+.consent-banner__text code {
+  font-size: 11px;
+  background: var(--line-soft);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.consent-banner__btn {
+  flex-shrink: 0;
+  padding: 8px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.consent-banner__btn:hover { opacity: 0.85; }
 
 /* ============================================================
    USER MENU + AVATARS

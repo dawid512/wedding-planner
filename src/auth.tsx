@@ -852,6 +852,12 @@ function AuthScreen({ auth }: AuthScreenProps) {
         <div className="auth__note">
           <span className="mono">Zakres: <code>drive</code> — odczyt i zapis plików na Twoim Google Drive.</span>
         </div>
+        <div className="auth__legal">
+          Logując się, akceptujesz{" "}
+          <a href="terms.html" target="_blank" rel="noopener">Regulamin</a>
+          {" "}i{" "}
+          <a href="privacy-policy.html" target="_blank" rel="noopener">Politykę Prywatności</a>.
+        </div>
       </div>
     </div>
   );

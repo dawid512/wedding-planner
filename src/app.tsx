@@ -48,12 +48,43 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType<PlannerPageProps>> = {
   honeymoon:   React.memo(PageHoneymoon),
 };
 
-const ROUTE_KEY = "wedding-planner-route-v1";
+const ROUTE_KEY    = "wedding-planner-route-v1";
+const CONSENT_KEY  = "wp_consent_v1";
 
 // Inactivity timeouts while in edit mode
 const INACTIVITY_WARN_MS     = 8  * 60 * 1000; // 8 min — show warning
 const INACTIVITY_KICK_MS     = 10 * 60 * 1000; // 10 min — force exit
 const ACTIVITY_THROTTLE_MS   = 15_000;          // don't reset timers more than once per 15s
+
+// ============================================================
+// CONSENT BANNER
+// ============================================================
+
+function ConsentBanner() {
+  const [visible, setVisible] = useS<boolean>(() => !localStorage.getItem(CONSENT_KEY));
+
+  const accept = () => {
+    localStorage.setItem(CONSENT_KEY, "1");
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div className="consent-banner">
+      <p className="consent-banner__text">
+        Ta aplikacja używa <code>localStorage</code> wyłącznie do zapamiętania sesji — żadnych cookies, żadnych reklam.
+        Dane planu przechowywane są na Twoim Google Drive.{" "}
+        <a href="privacy-policy.html" target="_blank" rel="noopener">Polityka Prywatności</a>
+        {" · "}
+        <a href="terms.html" target="_blank" rel="noopener">Regulamin</a>
+      </p>
+      <button className="consent-banner__btn" onClick={accept}>
+        Rozumiem
+      </button>
+    </div>
+  );
+}
 
 function App() {
   const auth = useAuth() as PlannerAuth;
@@ -68,27 +99,30 @@ function App() {
   }, [tweaks.theme]);
 
   if (!auth.session) {
-    return <AuthScreen auth={auth} />;
+    return <><ConsentBanner /><AuthScreen auth={auth} /></>;
   }
 
   if (auth.needsPicker) {
-    return <PickerScreen auth={auth} />;
+    return <><ConsentBanner /><PickerScreen auth={auth} /></>;
   }
 
   if (!auth.activeWorkspace) {
     return (
-      <div className="auth">
-        <div className="auth__card" style={{ textAlign: "center" }}>
-          <div className="auth__eyebrow">— Brak planu —</div>
-          <h1 className="auth__title">Nie masz jeszcze <em>żadnego planu</em></h1>
-          <p className="auth__sub">Poproś osobę, która planuje ślub, by Cię zaprosiła do edycji.</p>
-          <button className="btn auth__submit" onClick={() => auth.logout()}>Wyloguj się</button>
+      <>
+        <ConsentBanner />
+        <div className="auth">
+          <div className="auth__card" style={{ textAlign: "center" }}>
+            <div className="auth__eyebrow">— Brak planu —</div>
+            <h1 className="auth__title">Nie masz jeszcze <em>żadnego planu</em></h1>
+            <p className="auth__sub">Poproś osobę, która planuje ślub, by Cię zaprosiła do edycji.</p>
+            <button className="btn auth__submit" onClick={() => auth.logout()}>Wyloguj się</button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
-  return <PlannerApp auth={auth} tweaks={tweaks} setTweak={setTweak} />;
+  return <><ConsentBanner /><PlannerApp auth={auth} tweaks={tweaks} setTweak={setTweak} /></>;
 }
 
 type PlannerAppProps = {
