@@ -344,7 +344,7 @@ Wniosek:
 10. ~~**Menu boczne**~~ ✅ ZROBIONE (2026-05-19) — usunięto blok "Współedytorzy" + "Zaproś osobę" z sidebar i dead code `activeCollab`/`collabCount`.
 11. **Obsługa zdjęć i grafik** — upload do folderu na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać file ID lub URL (nie base64, nie blob). Strategia: każdy user uploaduje do swojego `WeddingPlanner/attachments/`; linki współdzielone przez permissions Drive.
 12. ~~**Domyślny plan przy starcie**~~ ✅ ZROBIONE (2026-05-19) — `defaultPlanId` w `UserConfig`, `setDefaultPlan()`, ★ w UserMenu, priorytet bootstrap.
-13. **RODO / cookies / zgody** — banner cookies, link do Privacy Policy, obsługa `localStorage` tylko po zgodzie, polityka przechowywania danych (wymagane przez Google OAuth verification).
+13. ~~**RODO / cookies / zgody**~~ ✅ ZROBIONE (2026-05-20) — `public/privacy-policy.html` (GDPR po polsku, sekcje 1-12, standalone light/dark), `public/terms.html` (Regulamin), baner zgody `ConsentBanner` (klucz `wp_consent_v1` w localStorage), linki PP+TOS w `AuthScreen` pod przyciskiem logowania (`.auth__legal`), style `.consent-banner` + `.auth__legal` w `styles.css`.
 14. **Weryfikacja Google OAuth** — lista wymagań: hosted Privacy Policy URL, Terms of Service URL, opis zakresu `drive` w formularzu weryfikacji, ograniczenie scope do minimum (rozważyć powrót do `drive.file`), brand verification.
 
 ### Pozostałe techniczne
