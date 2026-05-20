@@ -128,7 +128,7 @@ Jesli `README.md` i `PROJECT_HANDOFF.md` sa sprzeczne, pierwszenstwo ma `PROJECT
 8. ~~**Lista Gości — parowanie gości**~~ ✅ ZROBIONE — `partnerId` w modelu, `pair`/`unpair`, sortowanie par razem, badge ↔, widoczne też w planie stołów.
 9. ~~**Plan stołów — domyślny stół pary młodej**~~ ✅ ZROBIONE — stół "Para Młoda" capacity 2 z g1/g2 przypisanymi.
 10. ~~**Menu boczne**~~ ✅ ZROBIONE — usunięto "Współedytorzy · N" i "Zaproś osobę" z sidebar.
-11. **Obsługa zdjęć i grafik** — przechowywać pliki na Google Drive osoby edytującej; w `wedding-data.json` właściciela zapisywać link (file ID lub URL) do grafiki. Nie zawalać dysku właściciela.
+11. ~~**Obsługa zdjęć i grafik**~~ ✅ ZROBIONE — `getAuthToken()` w auth.tsx, `uploadImageToDrive()` / `getDriveThumbnailUrl()` / `deleteDriveFile()` / `findOrCreateSubfolder()` w google-drive.ts; `InspirationItem.photoId?: string`; komponent `PhotoUpload` (drag&drop, upload do `WeddingPlanner/attachments/`, podgląd, usuwanie) w `_shared.tsx`; podpięty do każdej karty moodboardu (inspiration.tsx).
 12. ~~**Domyślny plan przy starcie**~~ ✅ ZROBIONE — `defaultPlanId` w `user-config.json`, przycisk ★ w UserMenu, priorytet przy bootstrapDrive.
 13. ~~**RODO / cookies / zgody**~~ ✅ ZROBIONE — `public/privacy-policy.html` (pełna RODO po polsku), `public/terms.html` (Regulamin), baner zgody `localStorage` (`wp_consent_v1`) z linkami PP+TOS, linki "Polityka Prywatności" + "Regulamin" w AuthScreen pod przyciskiem logowania.
 14. **Weryfikacja Google** — refaktor i lista uwag niezbędnych do przejścia weryfikacji Google OAuth (privacy policy, TOS, zakres danych, itp.).
